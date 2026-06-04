@@ -2,14 +2,16 @@ import { Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { ShoppingBag, Menu as MenuIcon, X, Lock, Instagram, Facebook, Phone, MapPin, Clock } from "lucide-react";
-import { CAFE_ADDRESS, CAFE_MAPS_URL } from "@/lib/location";
-import logo from "@/assets/logo.png";
+import { CAFE_ADDRESS, CAFE_MAPS_URL, CAFE_HOURS_FOOTER } from "@/lib/location";
+import logo from "@/assets/Sweet_Drip_Logo..png";
 import { useCart, useAdmin } from "@/lib/store";
 import { AdminLoginDialog } from "./AdminLoginDialog";
+import { PinkBackgroundAccents } from "./PinkBackgroundAccents";
 
 const NAV = [
   { to: "/", label: "Home" },
   { to: "/menu", label: "Menu" },
+  { to: "/catering", label: "Catering" },
   { to: "/about", label: "About" },
   { to: "/contact", label: "Contact" },
 ];
@@ -120,7 +122,8 @@ export function Layout() {
   }, [open]);
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="relative min-h-screen flex flex-col">
+      <PinkBackgroundAccents />
       <PageLoader />
 
       <header ref={headerRef} className={`fixed top-0 inset-x-0 z-50 transition-all duration-500 ${scrolled ? "py-2" : "py-3 sm:py-4"}`}>
@@ -132,14 +135,14 @@ export function Layout() {
           }`}
         >
           <div className="flex items-center justify-between gap-2 sm:gap-4">
-            <Link to="/" className="flex shrink-0 items-center min-w-0">
+            <Link to="/" className="flex shrink-0 items-center min-w-0 transition hover:opacity-90">
               <img
                 src={logo}
                 alt="Sweet Drip"
-                className={`w-auto object-contain transition-all duration-500 drop-shadow-[0_2px_12px_rgba(0,0,0,0.15)] ${
+                className={`w-auto object-contain transition-all duration-500 ${
                   scrolled
-                    ? "h-11 max-w-[160px] sm:h-14 sm:max-w-[200px] md:h-16 md:max-w-[240px]"
-                    : "h-14 max-w-[180px] sm:h-20 sm:max-w-[260px] md:h-24 md:max-w-[320px]"
+                    ? "h-14 max-w-[200px] sm:h-16 sm:max-w-[240px] md:h-[4.5rem] md:max-w-[280px]"
+                    : "h-16 max-w-[220px] sm:h-20 sm:max-w-[300px] md:h-24 md:max-w-[360px] lg:h-28 lg:max-w-[420px]"
                 }`}
               />
             </Link>
@@ -213,88 +216,71 @@ export function Layout() {
         <Outlet />
       </main>
 
-      <footer className="relative mt-auto overflow-hidden bg-primary text-primary-foreground">
+      <footer className="site-footer relative mt-auto overflow-hidden">
         <div className="h-1 w-full gradient-gold" aria-hidden />
         <div
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-20%,oklch(0.78_0.14_55/0.22),transparent)]"
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-20%,oklch(0.88_0.08_355/0.28),transparent)]"
+          aria-hidden
+        />
+        <div
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_50%_40%_at_100%_50%,oklch(0.78_0.1_10/0.16),transparent)]"
           aria-hidden
         />
 
         <div className="section-inner relative py-14 md:py-16 lg:py-20">
-          <div className="grid gap-12 lg:grid-cols-12 lg:gap-10">
-            <div className="flex flex-col items-center text-center lg:col-span-5 lg:items-start lg:text-left">
+          <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-4 lg:gap-x-10 lg:gap-y-12">
+            <div className="flex flex-col items-center text-center lg:items-start lg:text-left">
               <Link to="/" className="inline-block transition hover:opacity-90">
-                <span className="inline-flex rounded-2xl bg-primary-foreground px-5 py-3 shadow-[0_8px_28px_rgba(0,0,0,0.28)] ring-1 ring-primary-foreground/20 md:px-6 md:py-4">
-                  <img src={logo} alt="Sweet Drip" className="h-28 w-auto md:h-36 lg:h-40" />
-                </span>
+                <img
+                  src={logo}
+                  alt="Sweet Drip"
+                  className="h-24 w-auto drop-shadow-md md:h-32 lg:h-36"
+                />
               </Link>
-              <p className="mt-5 max-w-xs text-sm leading-relaxed text-primary-foreground/75">
-                Where every bite is a <span className="font-script text-gradient-gold text-lg">sweet escape</span>.
-                Crafted with love in Chicago.
-              </p>
-              <div className="mt-6 flex items-center justify-center gap-2 lg:justify-start">
-                {[
-                  { href: "https://www.instagram.com/sweetdrip_desserts/", label: "Instagram", Icon: Instagram },
-                  { href: "https://www.facebook.com/profile.php?id=61557068464580", label: "Facebook", Icon: Facebook },
-                  { href: "https://www.tiktok.com/@sweet.drip.cafe", label: "TikTok", Icon: TikTokIcon },
-                ].map(({ href, label, Icon }) => (
-                  <a
-                    key={href}
-                    href={href}
-                    target="_blank"
-                    rel="noreferrer"
-                    aria-label={label}
-                    className="flex h-10 w-10 items-center justify-center rounded-full border border-primary-foreground/15 bg-primary-foreground/5 transition hover:border-accent hover:bg-accent hover:text-primary"
-                  >
-                    <Icon className="h-4 w-4" />
-                  </a>
-                ))}
-              </div>
             </div>
 
-            <div className="grid gap-10 sm:grid-cols-3 lg:col-span-7 lg:gap-8">
-              <div className="text-center sm:text-left">
-                <p className="mb-4 text-[10px] font-semibold uppercase tracking-[0.28em] text-accent">Visit</p>
-                <ul className="space-y-3 text-sm text-primary-foreground/85">
+            <div className="grid grid-cols-1 gap-10 sm:grid-cols-3 lg:col-span-3 lg:gap-8">
+              <div className="flex flex-col items-center text-center sm:items-start sm:text-left">
+                <p className="footer-heading">Visit</p>
+                <ul className="w-full space-y-3 text-sm">
                   <li>
                     <a
                       href={CAFE_MAPS_URL}
                       target="_blank"
                       rel="noreferrer"
-                      className="group inline-flex items-start gap-3 text-left transition hover:text-accent"
+                      className="footer-link flex items-start gap-3 text-left"
                     >
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-foreground/10">
-                        <MapPin className="h-4 w-4 text-accent" />
+                      <span className="footer-icon-box">
+                        <MapPin className="h-4 w-4" />
                       </span>
-                      <span className="pt-1.5 leading-snug">{CAFE_ADDRESS}</span>
+                      <span className="min-w-0 pt-1.5 leading-snug">{CAFE_ADDRESS}</span>
                     </a>
                   </li>
                   <li>
-                    <a href="tel:+17739664332" className="group inline-flex items-center gap-3 transition hover:text-accent">
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-foreground/10">
-                        <Phone className="h-4 w-4 text-accent" />
+                    <a href="tel:+17739664332" className="footer-link flex items-center gap-3 text-left">
+                      <span className="footer-icon-box">
+                        <Phone className="h-4 w-4" />
                       </span>
-                      +1 (773) 966-4332
+                      <span className="min-w-0 leading-snug">+1 (773) 966-4332</span>
                     </a>
                   </li>
-                  <li className="inline-flex items-center gap-3">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-foreground/10">
-                      <Clock className="h-4 w-4 text-accent" />
-                    </span>
-                    Mon–Sun · 9 AM – 9 PM
+                  <li>
+                    <div className="footer-link flex items-center gap-3 text-left">
+                      <span className="footer-icon-box">
+                        <Clock className="h-4 w-4" />
+                      </span>
+                      <span className="min-w-0 leading-snug">{CAFE_HOURS_FOOTER}</span>
+                    </div>
                   </li>
                 </ul>
               </div>
 
-              <div className="text-center sm:text-left">
-                <p className="mb-4 text-[10px] font-semibold uppercase tracking-[0.28em] text-accent">Explore</p>
-                <ul className="space-y-2.5 text-sm">
+              <div className="flex flex-col items-center text-center sm:items-start sm:text-left">
+                <p className="footer-heading">Explore</p>
+                <ul className="w-full space-y-2.5 text-sm">
                   {NAV.map((n) => (
                     <li key={n.to}>
-                      <Link
-                        to={n.to}
-                        className="inline-block text-primary-foreground/85 transition hover:translate-x-0.5 hover:text-accent"
-                      >
+                      <Link to={n.to} className="footer-link inline-block transition hover:translate-x-0.5">
                         {n.label}
                       </Link>
                     </li>
@@ -302,32 +288,50 @@ export function Layout() {
                 </ul>
               </div>
 
-              <div className="text-center sm:text-left">
-                <p className="mb-4 text-[10px] font-semibold uppercase tracking-[0.28em] text-accent">Legal</p>
-                <ul className="space-y-2.5 text-sm">
+              <div className="flex flex-col items-center text-center sm:items-start sm:text-left">
+                <p className="footer-heading">Legal</p>
+                <ul className="w-full space-y-2.5 text-sm">
                   <li>
-                    <Link to="/privacy" className="text-primary-foreground/85 transition hover:text-accent">
+                    <Link to="/privacy" className="footer-link inline-block transition hover:translate-x-0.5">
                       Privacy Policy
                     </Link>
                   </li>
                   <li>
-                    <Link to="/terms" className="text-primary-foreground/85 transition hover:text-accent">
+                    <Link to="/terms" className="footer-link inline-block transition hover:translate-x-0.5">
                       Terms & Conditions
                     </Link>
                   </li>
                 </ul>
+                <div className="mt-6 flex items-center justify-center gap-2 sm:justify-start">
+                  {[
+                    { href: "https://www.instagram.com/sweetdrip_desserts/", label: "Instagram", Icon: Instagram },
+                    { href: "https://www.facebook.com/profile.php?id=61557068464580", label: "Facebook", Icon: Facebook },
+                    { href: "https://www.tiktok.com/@sweet.drip.cafe", label: "TikTok", Icon: TikTokIcon },
+                  ].map(({ href, label, Icon }) => (
+                    <a
+                      key={href}
+                      href={href}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label={label}
+                      className="flex h-10 w-10 items-center justify-center rounded-full border border-[oklch(0.32_0.08_40/0.2)] bg-[oklch(0.32_0.08_40/0.08)] text-[var(--footer-fg)] transition hover:border-[oklch(0.32_0.08_40/0.35)] hover:bg-[oklch(0.32_0.08_40/0.14)]"
+                    >
+                      <Icon className="h-4 w-4" />
+                    </a>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="border-t border-primary-foreground/10 bg-black/15">
-          <div className="section-inner flex flex-col items-center justify-between gap-3 py-5 text-center text-xs text-primary-foreground/60 sm:flex-row sm:text-left">
+        <div className="site-footer-bar">
+          <div className="section-inner flex flex-col items-center justify-between gap-3 py-5 text-center text-xs text-[var(--footer-muted)] sm:flex-row sm:text-left">
             <span>© {new Date().getFullYear()} Sweet Drip Dessert Cafe. All rights reserved.</span>
             <button
               type="button"
               onClick={() => setAdminOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-full border border-primary-foreground/10 px-3 py-1.5 transition hover:border-accent/40 hover:text-accent"
+              className="inline-flex items-center gap-1.5 rounded-full border border-[oklch(0.32_0.08_40/0.2)] px-3 py-1.5 text-[var(--footer-muted)] transition hover:border-[oklch(0.32_0.08_40/0.35)] hover:text-[var(--footer-fg)]"
             >
               <Lock className="h-3 w-3" /> {isAdmin ? "Admin" : "Staff"}
             </button>

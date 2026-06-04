@@ -10,7 +10,7 @@ import {
 import { type ReactNode, useEffect } from "react";
 
 import appCss from "../styles.css?url";
-import favicon from "@/assets/logo.png?url";
+import favicon from "@/assets/Sweet_Drip_Logo..png?url";
 import { Layout } from "../components/Layout";
 import { Toaster } from "../components/ui/sonner";
 import { initShopSync } from "@/lib/store";

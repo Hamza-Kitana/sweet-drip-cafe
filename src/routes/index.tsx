@@ -9,6 +9,7 @@ import { SectionHeading } from "@/components/SectionHeading";
 import { visibleCategories, isOffersSectionVisible } from "@/lib/catalog";
 import { isLiveOffer, OFFERS_MENU_FILTER } from "@/lib/offers";
 import { useShop } from "@/lib/store";
+import { CAFE_HOURS, CAFE_HOURS_FOOTER } from "@/lib/location";
 import { ChefHat, Sparkles, Heart, Award, MapPin, Phone, Clock } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -99,7 +100,7 @@ function Index() {
               >
                 <Link to="/menu" search={{ cat: c.id } as any} className="group relative block aspect-[4/5] rounded-3xl overflow-hidden shadow-soft">
                   <img src={c.image} alt={c.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-primary/90 via-primary/30 to-transparent" />
+                  <div className="overlay-pink-card absolute inset-0" />
                   <div className="absolute inset-x-0 bottom-0 p-3 sm:p-6 text-primary-foreground">
                     <h3 className="text-base sm:text-xl lg:text-2xl font-display">{c.name}</h3>
                     <span className="text-xs uppercase tracking-widest opacity-80">Browse →</span>
@@ -128,11 +129,11 @@ function Index() {
           <div className="text-center lg:text-left">
             <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.25em] sm:tracking-[0.3em] text-accent mb-2 sm:mb-3">Visit Us</p>
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-display leading-tight">Find your <span className="font-script text-gradient-gold">sweet spot</span></h2>
-            <p className="mt-4 sm:mt-6 opacity-80 text-sm sm:text-base max-w-md mx-auto lg:mx-0">Cozy corner of Hyde Park, Chicago. Open 9 AM to 9 PM — every single day.</p>
+            <p className="mt-4 sm:mt-6 opacity-80 text-sm sm:text-base max-w-md mx-auto lg:mx-0">Cozy corner of Hyde Park, Chicago. Open {CAFE_HOURS} — every single day.</p>
             <ul className="mt-6 sm:mt-8 space-y-3 sm:space-y-4 text-sm sm:text-base inline-block text-left">
               <li className="flex gap-3"><MapPin className="text-accent shrink-0 mt-0.5" /><span>1658 E 53rd St, Chicago, IL 60615</span></li>
               <li className="flex gap-3"><Phone className="text-accent shrink-0" />+1 (773) 966-4332</li>
-              <li className="flex gap-3"><Clock className="text-accent shrink-0" />Mon – Sun · 9 AM – 9 PM</li>
+              <li className="flex gap-3"><Clock className="text-accent shrink-0" />{CAFE_HOURS_FOOTER}</li>
             </ul>
           </div>
           <MapLocationBox

@@ -49,7 +49,7 @@ function InvoicePage() {
           <div>
             <p className="text-muted-foreground">Reservation</p>
             <p>{order.customer.date} · {order.customer.time}</p>
-            <p>Guests: {order.customer.guests}</p>
+            {order.customer.guests != null && <p>Guests: {order.customer.guests}</p>}
             {order.customer.message && <p className="italic mt-1">"{order.customer.message}"</p>}
           </div>
         </div>

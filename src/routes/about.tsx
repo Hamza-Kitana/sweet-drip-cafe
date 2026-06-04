@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion } from "motion/react";
 import { useShop } from "@/lib/store";
-import { CAFE_ADDRESS, CAFE_MAPS_URL } from "@/lib/location";
+import { CAFE_ADDRESS, CAFE_MAPS_URL, CAFE_HOURS_FOOTER } from "@/lib/location";
 import { SectionHeading } from "@/components/SectionHeading";
+import logo from "@/assets/Sweet_Drip_Logo..png";
 import {
   Award,
   ArrowRight,
@@ -55,6 +56,31 @@ function AboutPage() {
 
   return (
     <div>
+      <section className="flex flex-col items-center justify-center px-4 pb-6 pt-10 text-center sm:pb-8 sm:pt-14 md:pt-16">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+          className="flex max-w-2xl flex-col items-center"
+        >
+          <img
+            src={logo}
+            alt="Sweet Drip"
+            className="h-36 w-auto drop-shadow-md sm:h-44 md:h-52 lg:h-60"
+          />
+          <p className="mt-6 font-display text-2xl leading-snug text-primary sm:mt-8 sm:text-3xl md:text-4xl">
+            Every drip tells a story of{" "}
+            <span className="font-script text-gradient-gold">sweetness</span>
+          </p>
+          <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground sm:mt-4 sm:text-base">
+            Handcrafted desserts, warm smiles, and a cozy corner in Hyde Park where ordinary days turn into sweet memories.
+          </p>
+          <p className="mt-4 text-[10px] font-semibold uppercase tracking-[0.28em] text-secondary sm:text-xs">
+            Est. 2019 · Chicago
+          </p>
+        </motion.div>
+      </section>
+
       <section className={aboutSection}>
         <div className="section-inner w-full">
         <div className="grid grid-cols-1 items-center gap-8 lg:grid-cols-2 lg:gap-12">
@@ -222,7 +248,7 @@ function AboutPage() {
               </li>
               <li className="flex items-center gap-3">
                 <Clock className="h-4 w-4 shrink-0 text-accent" />
-                Mon – Sun · 9 AM – 9 PM
+                {CAFE_HOURS_FOOTER}
               </li>
             </ul>
             <div className="mt-8 flex flex-wrap justify-center gap-3">

@@ -44,6 +44,7 @@ export function IngredientsFloatingBg() {
           driftX: ((i % 5) - 2) * 14,
           driftY: -18 - (i % 6) * 6,
           rotate: (i % 8) * 18 - 28,
+          tint: i % 3 === 0 ? "rose" : "primary",
         };
       }),
     [],
@@ -51,10 +52,12 @@ export function IngredientsFloatingBg() {
 
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+      <div className="absolute -right-16 top-[10%] h-56 w-56 rounded-full bg-[oklch(0.86_0.10_350/0.12)] blur-3xl" />
+      <div className="absolute -left-12 bottom-[15%] h-48 w-48 rounded-full bg-[oklch(0.90_0.07_355/0.10)] blur-3xl" />
       {items.map((item, i) => (
         <motion.div
           key={i}
-          className="absolute text-primary"
+          className={item.tint === "rose" ? "absolute text-[oklch(0.72_0.12_350)]" : "absolute text-primary"}
           style={{
             left: item.left,
             top: item.top,

@@ -18,7 +18,6 @@ const schema = z.object({
     .transform(usPhoneDigits)
     .refine((digits) => digits.length === 10, "Enter a valid 10-digit US phone number")
     .transform(formatUsPhoneFull),
-  guests: z.coerce.number().min(1, "Must be at least 1").max(50),
   date: z.string().min(1, "Date required"),
   time: z.string().min(1, "Time required"),
   message: z.string().max(500).optional(),
@@ -44,7 +43,7 @@ function CheckoutPage() {
   const [step, setStep] = useState<"details" | "payment">("details");
   const [tipPct, setTipPct] = useState<number | "custom">(tip > 0 ? "custom" : 0);
   const [customTip, setCustomTip] = useState(tip > 0 ? String(tip) : "");
-  const [form, setForm] = useState({ name: "", email: "", phone: "", guests: "1", date: "", time: "", message: "" });
+  const [form, setForm] = useState({ name: "", email: "", phone: "", date: "", time: "", message: "" });
   const [card, setCard] = useState({ number: "", exp: "", cvc: "" });
 
   const subtotal = items.reduce((s, i) => s + i.price * i.qty, 0);
@@ -119,7 +118,6 @@ function CheckoutPage() {
                   />
                 </div>
               </Field>
-              <Field label="Guest Count *"><Input type="number" min="1" value={form.guests} onChange={e => setForm({...form, guests: e.target.value})} /></Field>
               <Field label="Date *"><Input type="date" value={form.date} onChange={e => setForm({...form, date: e.target.value})} /></Field>
               <Field label="Time *"><Input type="time" value={form.time} onChange={e => setForm({...form, time: e.target.value})} /></Field>
               <div className="sm:col-span-2"><Field label="Message"><Textarea rows={3} value={form.message} onChange={e => setForm({...form, message: e.target.value})} /></Field></div>

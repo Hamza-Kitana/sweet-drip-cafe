@@ -2,6 +2,9 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import heroDessert from "@/assets/hero-dessert.jpg";
 import aboutCafe from "@/assets/about-cafe.jpg";
+import float1 from "@/assets/float-1.png";
+import float2 from "@/assets/float-2.png";
+import float3 from "@/assets/float-3.png";
 
 export type ProductOption = { name: string; choices: string[] };
 export type Product = {
@@ -41,8 +44,13 @@ export type Order = {
   createdAt: string;
   items: CartItem[];
   customer: {
-    name: string; email: string; phone: string;
-    guests: number; date: string; time: string; message?: string;
+    name: string;
+    email: string;
+    phone: string;
+    guests?: number;
+    date: string;
+    time: string;
+    message?: string;
   };
   subtotal: number;
   tip: number;
@@ -50,10 +58,34 @@ export type Order = {
   status: "new" | "preparing" | "ready" | "done" | "cancelled";
 };
 
+export type LargeOrderRequest = {
+  id: string;
+  createdAt: string;
+  name: string;
+  email: string;
+  phone: string;
+  guests: number;
+  date: string;
+  time: string;
+  message?: string;
+  status: "new" | "contacted" | "done";
+};
+
 type AdminState = {
   isAdmin: boolean;
+  username: string;
+  password: string;
   setAdmin: (v: boolean) => void;
+  login: (username: string, password: string) => boolean;
+  updateCredentials: (input: {
+    username: string;
+    password: string;
+    currentPassword: string;
+  }) => { ok: true } | { ok: false; error: string };
 };
+
+export const DEFAULT_ADMIN_USERNAME = "admin";
+export const DEFAULT_ADMIN_PASSWORD = "admin123";
 
 const seedCategories: Category[] = [
   { id: "cakes",     name: "Cakes",      image: "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=800" },
@@ -73,18 +105,30 @@ const seedProducts: Product[] = [
   { id: "p8", categoryId: "pastries", name: "Cinnamon Roll", description: "Warm, gooey, swirled with cinnamon glaze.", price: 4.0, image: "https://images.unsplash.com/photo-1509365465985-25d11c17e812?w=900", notes: "Glaze", noteChoices: ["Regular","Extra glaze","No glaze"] },
 ];
 
+export type BackgroundSlide = {
+  image: string;
+  caption: string;
+};
+
 export type HeroSettings = {
   tagline: string;
   /** Hero foreground image (beside headline on desktop) */
   image: string;
+  /** Three decorative images that float beside the main hero photo */
+  floatingImages: string[];
   aboutImage: string;
   /** Up to 5 rotating homepage background slides */
-  backgroundSlides: string[];
+  backgroundSlides: BackgroundSlide[];
+  heroBadge: string;
+  heroTitleBefore: string;
+  heroTitleAccent: string;
+  heroTitleAfter: string;
 };
 
 export const HERO_SLIDE_COUNT = 5;
+export const FLOAT_IMAGE_COUNT = 3;
 
-const defaultBackgroundSlides = [
+const defaultBackgroundSlideUrls = [
   heroDessert,
   aboutCafe,
   "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=1400&q=80",
@@ -92,23 +136,53 @@ const defaultBackgroundSlides = [
   "https://images.unsplash.com/photo-1488900128323-21503983a07e?w=1400&q=80",
 ];
 
-export function normalizeBackgroundSlides(slides?: string[]): string[] {
-  const source = slides?.length ? [...slides] : [...defaultBackgroundSlides];
-  const padded = [...source];
-  while (padded.length < HERO_SLIDE_COUNT) padded.push("");
+const defaultFloatingImages = [float1, float2, float3];
+
+export function normalizeBackgroundSlides(
+  slides?: BackgroundSlide[] | string[],
+): BackgroundSlide[] {
+  let parsed: BackgroundSlide[];
+  if (!slides?.length) {
+    parsed = defaultBackgroundSlideUrls.map((image) => ({ image, caption: "" }));
+  } else if (typeof slides[0] === "string") {
+    parsed = (slides as string[]).map((image) => ({ image: image ?? "", caption: "" }));
+  } else {
+    parsed = (slides as BackgroundSlide[]).map((s) => ({
+      image: s.image ?? "",
+      caption: s.caption ?? "",
+    }));
+  }
+  const padded = [...parsed];
+  while (padded.length < HERO_SLIDE_COUNT) padded.push({ image: "", caption: "" });
   return padded.slice(0, HERO_SLIDE_COUNT);
 }
 
-export function activeBackgroundSlides(slides?: string[]): string[] {
-  const filled = normalizeBackgroundSlides(slides).filter(Boolean);
-  return filled.length > 0 ? filled : defaultBackgroundSlides;
+export function activeBackgroundSlides(
+  slides?: BackgroundSlide[] | string[],
+): BackgroundSlide[] {
+  const normalized = normalizeBackgroundSlides(slides);
+  const filled = normalized.filter((s) => s.image);
+  if (filled.length > 0) return filled;
+  return defaultBackgroundSlideUrls.map((image) => ({ image, caption: "" }));
+}
+
+export function normalizeFloatingImages(images?: string[]): string[] {
+  const source = images?.length ? [...images] : [...defaultFloatingImages];
+  const padded = [...source];
+  while (padded.length < FLOAT_IMAGE_COUNT) padded.push("");
+  return padded.slice(0, FLOAT_IMAGE_COUNT);
 }
 
 const seedHero: HeroSettings = {
   image: heroDessert,
+  floatingImages: defaultFloatingImages,
   aboutImage: aboutCafe,
   tagline: "Where every bite is a sweet escape.",
-  backgroundSlides: defaultBackgroundSlides,
+  backgroundSlides: defaultBackgroundSlideUrls.map((image) => ({ image, caption: "" })),
+  heroBadge: "Dessert Cafe · Chicago",
+  heroTitleBefore: "Sweet",
+  heroTitleAccent: "Drip",
+  heroTitleAfter: "Every Day.",
 };
 
 const seedOffers: Offer[] = [
@@ -137,6 +211,7 @@ type ShopState = {
   products: Product[];
   offers: Offer[];
   orders: Order[];
+  largeOrders: LargeOrderRequest[];
   hero: HeroSettings;
   /** Show offers tab, homepage block, and menu filter */
   offersSectionVisible: boolean;
@@ -155,6 +230,9 @@ type ShopState = {
 
   addOrder: (o: Omit<Order, "id" | "createdAt" | "status">) => Order;
   updateOrderStatus: (id: string, s: Order["status"]) => void;
+
+  addLargeOrder: (o: Omit<LargeOrderRequest, "id" | "createdAt" | "status">) => LargeOrderRequest;
+  updateLargeOrderStatus: (id: string, s: LargeOrderRequest["status"]) => void;
 
   setHero: (h: Partial<HeroSettings>) => void;
   setOffersSectionVisible: (visible: boolean) => void;
@@ -193,6 +271,15 @@ export function notifyNewOrder(order: Order) {
   }
 }
 
+export function notifyNewLargeOrder(request: LargeOrderRequest) {
+  if (typeof window === "undefined") return;
+  try {
+    new BroadcastChannel(SHOP_SYNC_CHANNEL).postMessage({ type: "new-large-order", requestId: request.id });
+  } catch {
+    /* BroadcastChannel unavailable */
+  }
+}
+
 export function initShopSync() {
   if (typeof window === "undefined") return;
   const flag = "__sweetdripShopSyncInit";
@@ -210,7 +297,7 @@ export function initShopSync() {
   try {
     const channel = new BroadcastChannel(SHOP_SYNC_CHANNEL);
     channel.onmessage = (event) => {
-      if (event.data?.type === "new-order") rehydrate();
+      if (event.data?.type === "new-order" || event.data?.type === "new-large-order") rehydrate();
     };
   } catch {
     /* BroadcastChannel unavailable */
@@ -224,6 +311,7 @@ export const useShop = create<ShopState>()(
       products: seedProducts,
       offers: seedOffers,
       orders: [],
+      largeOrders: [],
       hero: seedHero,
       offersSectionVisible: true,
 
@@ -257,6 +345,20 @@ export const useShop = create<ShopState>()(
       },
       updateOrderStatus: (oid, s) => set({ orders: get().orders.map(x => x.id === oid ? { ...x, status: s } : x) }),
 
+      addLargeOrder: (o) => {
+        const request: LargeOrderRequest = {
+          ...o,
+          id: "LO-" + Date.now().toString().slice(-6),
+          createdAt: new Date().toISOString(),
+          status: "new",
+        };
+        set({ largeOrders: [request, ...get().largeOrders] });
+        notifyNewLargeOrder(request);
+        return request;
+      },
+      updateLargeOrderStatus: (id, s) =>
+        set({ largeOrders: get().largeOrders.map((x) => (x.id === id ? { ...x, status: s } : x)) }),
+
       setHero: (h) => {
         const current = get().hero;
         set({
@@ -266,6 +368,9 @@ export const useShop = create<ShopState>()(
             backgroundSlides: h.backgroundSlides
               ? normalizeBackgroundSlides(h.backgroundSlides)
               : normalizeBackgroundSlides(current.backgroundSlides),
+            floatingImages: h.floatingImages
+              ? normalizeFloatingImages(h.floatingImages)
+              : normalizeFloatingImages(current.floatingImages),
           },
         });
       },
@@ -275,14 +380,19 @@ export const useShop = create<ShopState>()(
       name: SHOP_STORAGE_KEY,
       merge: (persisted, current) => {
         const state = { ...current, ...(persisted as Partial<ShopState>) };
+        const persistedHero = (persisted as Partial<ShopState>)?.hero;
         state.hero = {
           ...seedHero,
           ...current.hero,
-          ...(persisted as Partial<ShopState>)?.hero,
+          ...persistedHero,
           backgroundSlides: normalizeBackgroundSlides(
-            (persisted as Partial<ShopState>)?.hero?.backgroundSlides ?? current.hero.backgroundSlides,
+            persistedHero?.backgroundSlides ?? current.hero.backgroundSlides,
+          ),
+          floatingImages: normalizeFloatingImages(
+            persistedHero?.floatingImages ?? current.hero.floatingImages,
           ),
         };
+        state.largeOrders = (persisted as Partial<ShopState>)?.largeOrders ?? current.largeOrders ?? [];
         return state;
       },
     },
@@ -291,9 +401,49 @@ export const useShop = create<ShopState>()(
 
 export const useAdmin = create<AdminState>()(
   persist(
-    (set) => ({ isAdmin: false, setAdmin: (v) => set({ isAdmin: v }) }),
-    { name: "sweetdrip-admin" }
-  )
+    (set, get) => ({
+      isAdmin: false,
+      username: DEFAULT_ADMIN_USERNAME,
+      password: DEFAULT_ADMIN_PASSWORD,
+      setAdmin: (v) => set({ isAdmin: v }),
+      login: (username, password) => {
+        const state = get();
+        if (username === state.username && password === state.password) {
+          set({ isAdmin: true });
+          return true;
+        }
+        return false;
+      },
+      updateCredentials: ({ username, password, currentPassword }) => {
+        const state = get();
+        if (currentPassword !== state.password) {
+          return { ok: false, error: "Current password is incorrect" };
+        }
+        const nextUsername = username.trim();
+        const nextPassword = password.trim();
+        if (!nextUsername) {
+          return { ok: false, error: "Username is required" };
+        }
+        if (nextPassword.length < 6) {
+          return { ok: false, error: "Password must be at least 6 characters" };
+        }
+        set({ username: nextUsername, password: nextPassword });
+        return { ok: true };
+      },
+    }),
+    {
+      name: "sweetdrip-admin",
+      merge: (persisted, current) => {
+        const saved = persisted as Partial<AdminState>;
+        return {
+          ...current,
+          ...saved,
+          username: saved.username ?? DEFAULT_ADMIN_USERNAME,
+          password: saved.password ?? DEFAULT_ADMIN_PASSWORD,
+        };
+      },
+    },
+  ),
 );
 
 // CART

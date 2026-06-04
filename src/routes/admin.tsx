@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState, useEffect, useRef } from "react";
-import { useShop, useAdmin, fmt, initShopSync, groupCartItems, HERO_SLIDE_COUNT, normalizeBackgroundSlides, type HeroSettings, type Product, type Category, type Offer, type Order } from "@/lib/store";
+import { useShop, useAdmin, fmt, initShopSync, groupCartItems, HERO_SLIDE_COUNT, FLOAT_IMAGE_COUNT, normalizeBackgroundSlides, normalizeFloatingImages, type HeroSettings, type Product, type Category, type Offer, type Order, type LargeOrderRequest } from "@/lib/store";
 import { AdminGuard } from "@/components/AdminGuard";
 import { ImageDropzone } from "@/components/ImageDropzone";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { LogOut, Plus, Pencil, Trash2, Image as ImageIcon, Package, Tag, Receipt, Home, Layers, Eye, EyeOff, Search, X } from "lucide-react";
+import { LogOut, Plus, Pencil, Trash2, Image as ImageIcon, Package, Tag, Receipt, Home, Layers, Eye, EyeOff, Search, X, UtensilsCrossed, KeyRound } from "lucide-react";
 import { isCategoryVisible } from "@/lib/catalog";
 import { toast } from "sonner";
 
@@ -19,15 +19,18 @@ export const Route = createFileRoute("/admin")({
   component: () => <AdminGuard><Dashboard /></AdminGuard>,
 });
 
-type Tab = "overview" | "orders" | "products" | "offers" | "site";
+type Tab = "overview" | "orders" | "catering" | "products" | "offers" | "site";
 
 function Dashboard() {
   const { setAdmin } = useAdmin();
   const isAdmin = useAdmin((s) => s.isAdmin);
   const orders = useShop((s) => s.orders);
+  const largeOrders = useShop((s) => s.largeOrders);
   const newOrderCount = orders.filter((o) => o.status === "new").length;
+  const newCateringCount = largeOrders.filter((o) => o.status === "new").length;
   const [tab, setTab] = useState<Tab>("overview");
   const lastSeenOrderId = useRef<string | null>(null);
+  const lastSeenCateringId = useRef<string | null>(null);
 
   useEffect(() => {
     initShopSync();
@@ -56,9 +59,33 @@ function Dashboard() {
     }
   }, [isAdmin, orders]);
 
+  useEffect(() => {
+    if (!isAdmin) return;
+
+    const latest = largeOrders[0];
+    if (!latest) {
+      lastSeenCateringId.current = null;
+      return;
+    }
+
+    if (lastSeenCateringId.current === null) {
+      lastSeenCateringId.current = latest.id;
+      return;
+    }
+
+    if (latest.id !== lastSeenCateringId.current && latest.status === "new") {
+      lastSeenCateringId.current = latest.id;
+      toast.success(`New catering request #${latest.id} · ${latest.name}`, {
+        description: `${latest.date} ${latest.time} · ${latest.guests} guests`,
+      });
+      setTab("catering");
+    }
+  }, [isAdmin, largeOrders]);
+
   const NAV: { id: Tab; label: string; icon: any }[] = [
     { id: "overview", label: "Overview", icon: Home },
     { id: "orders",   label: "Orders",   icon: Receipt },
+    { id: "catering", label: "Catering", icon: UtensilsCrossed },
     { id: "products", label: "Products", icon: Package },
     { id: "offers",   label: "Offers",   icon: Tag },
     { id: "site",     label: "Site",     icon: Layers },
@@ -67,16 +94,21 @@ function Dashboard() {
     <div className="section-inner py-8">
       <div className="grid lg:grid-cols-[240px_1fr] gap-6">
         <aside className="lg:sticky lg:top-28 h-fit">
-          <div className="rounded-3xl bg-sidebar text-sidebar-foreground p-5 shadow-soft">
-            <div className="text-xs uppercase tracking-widest opacity-60 mb-3">Admin</div>
+          <div className="admin-sidebar rounded-3xl p-5 shadow-soft">
+            <div className="mb-3 text-xs uppercase tracking-widest text-[var(--footer-muted)]">Admin</div>
             <nav className="space-y-1">
               {NAV.map(n => (
                 <button key={n.id} onClick={() => setTab(n.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm transition ${tab === n.id ? "bg-sidebar-primary text-sidebar-primary-foreground" : "hover:bg-sidebar-accent"}`}>
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm transition ${tab === n.id ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm" : "text-[var(--footer-muted)] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"}`}>
                   <n.icon className="w-4 h-4" /> {n.label}
                   {n.id === "orders" && newOrderCount > 0 && (
                     <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-[10px] font-bold text-primary">
                       {newOrderCount}
+                    </span>
+                  )}
+                  {n.id === "catering" && newCateringCount > 0 && (
+                    <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-[10px] font-bold text-primary">
+                      {newCateringCount}
                     </span>
                   )}
                 </button>
@@ -84,17 +116,18 @@ function Dashboard() {
             </nav>
             <Button
               variant="outline"
-              className="w-full mt-4 border-sidebar-border bg-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              className="mt-4 w-full border-sidebar-border bg-transparent text-[var(--footer-muted)] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
               onClick={() => { setAdmin(false); toast.success("Signed out"); }}
             >
               <LogOut className="w-4 h-4 mr-2" />Sign out
             </Button>
-            <Link to="/" className="block text-center text-xs opacity-70 hover:opacity-100 mt-3">View site →</Link>
+            <Link to="/" className="mt-3 block text-center text-xs text-[var(--footer-muted)] transition hover:text-[var(--footer-fg)]">View site →</Link>
           </div>
         </aside>
         <main className="min-w-0">
           {tab === "overview"   && <Overview />}
           {tab === "orders"     && <OrdersPanel />}
+          {tab === "catering"   && <CateringPanel />}
           {tab === "products"   && <ProductsPanel />}
           {tab === "offers"     && <OffersPanel />}
           {tab === "site"       && <SitePanel />}
@@ -112,8 +145,8 @@ function Overview() {
   const { orders, products, categories, offers } = useShop();
   const revenue = orders.reduce((s, o) => s + o.total, 0);
   const stats = [
-    { label: "Revenue", value: fmt(revenue), color: "gradient-choco" },
-    { label: "Orders", value: orders.length, color: "gradient-gold" },
+    { label: "Revenue", value: fmt(revenue) },
+    { label: "Orders", value: orders.length },
     { label: "Products", value: products.length },
     { label: "Categories", value: categories.length },
     { label: "Active Offers", value: offers.filter(o => o.active).length },
@@ -123,9 +156,9 @@ function Overview() {
       <h1 className="text-3xl font-display text-primary">Welcome back</h1>
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {stats.map(s => (
-          <Card key={s.label} className={s.color ? `${s.color} text-primary-foreground border-none` : ""}>
-            <div className="text-sm opacity-70">{s.label}</div>
-            <div className="text-3xl font-display mt-1">{s.value}</div>
+          <Card key={s.label} className="border-[oklch(0.72_0.09_350/0.28)] bg-gradient-to-br from-[oklch(0.98_0.02_350)] to-card">
+            <div className="text-sm font-medium text-muted-foreground">{s.label}</div>
+            <div className="mt-1 text-3xl font-display text-primary">{s.value}</div>
           </Card>
         ))}
       </div>
@@ -169,7 +202,10 @@ function OrdersPanel() {
                 <div>
                   <div className="font-semibold">#{o.id} · {o.customer.name}</div>
                   <div className="text-xs text-muted-foreground">{new Date(o.createdAt).toLocaleString()} · {o.customer.phone} · {o.customer.email}</div>
-                  <div className="text-xs text-muted-foreground">Reservation: {o.customer.date} {o.customer.time} · {o.customer.guests} guests</div>
+                  <div className="text-xs text-muted-foreground">
+                    Pickup: {o.customer.date} {o.customer.time}
+                    {o.customer.guests != null ? ` · ${o.customer.guests} guests` : ""}
+                  </div>
                 </div>
                 <div className="text-right">
                   <div className="font-display text-xl">{fmt(o.total)}</div>
@@ -186,6 +222,64 @@ function OrdersPanel() {
                   <li key={i.uid}>• {i.qty}× {i.name}{i.noteChoice ? ` (${i.noteChoice})` : ""}</li>
                 ))}
               </ul>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function CateringPanel() {
+  const { largeOrders, updateLargeOrderStatus } = useShop();
+  const newCount = largeOrders.filter((o) => o.status === "new").length;
+
+  return (
+    <Card>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="font-display text-2xl text-primary">Catering</h2>
+          {newCount > 0 && (
+            <p className="mt-1 text-sm text-accent">{newCount} new request(s) waiting</p>
+          )}
+        </div>
+        <p className="text-sm text-muted-foreground">{largeOrders.length} total</p>
+      </div>
+      {largeOrders.length === 0 ? (
+        <p className="text-muted-foreground">No catering requests yet.</p>
+      ) : (
+        <div className="space-y-3">
+          {largeOrders.map((r) => (
+            <div
+              key={r.id}
+              className={`rounded-2xl border p-4 ${r.status === "new" ? "border-accent/50 bg-accent/5" : ""}`}
+            >
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <div className="font-semibold">
+                    #{r.id} · {r.name}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {new Date(r.createdAt).toLocaleString()} · {r.phone} · {r.email}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Event: {r.date} {r.time} · {r.guests} guests
+                  </div>
+                  {r.message && <p className="mt-2 text-sm italic text-muted-foreground">&ldquo;{r.message}&rdquo;</p>}
+                </div>
+                <Select value={r.status} onValueChange={(v) => updateLargeOrderStatus(r.id, v as LargeOrderRequest["status"])}>
+                  <SelectTrigger className="mt-1 w-36">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(["new", "contacted", "done"] as const).map((s) => (
+                      <SelectItem key={s} value={s} className="capitalize">
+                        {s}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           ))}
         </div>
@@ -627,62 +721,181 @@ function OfferDialog({ open, onOpenChange, editing, onSave }: any) {
 
 function SitePanel() {
   const { hero, setHero } = useShop();
+  const { username, updateCredentials } = useAdmin();
   const [f, setF] = useState<HeroSettings>(() => ({
     ...hero,
     backgroundSlides: normalizeBackgroundSlides(hero.backgroundSlides),
+    floatingImages: normalizeFloatingImages(hero.floatingImages),
   }));
+  const [account, setAccount] = useState({
+    username,
+    password: "",
+    confirm: "",
+    currentPassword: "",
+  });
+
+  useEffect(() => {
+    setAccount((a) => ({ ...a, username }));
+  }, [username]);
 
   const slides = normalizeBackgroundSlides(f.backgroundSlides);
+  const floats = normalizeFloatingImages(f.floatingImages);
 
-  const updateSlide = (index: number, value: string) => {
-    const next = [...slides];
-    next[index] = value;
+  const updateSlideImage = (index: number, value: string) => {
+    const next = slides.map((slide, i) =>
+      i === index ? { ...slide, image: value } : slide,
+    );
+    setF({ ...f, backgroundSlides: next });
+  };
+
+  const updateSlideCaption = (index: number, caption: string) => {
+    const next = slides.map((slide, i) =>
+      i === index ? { ...slide, caption } : slide,
+    );
     setF({ ...f, backgroundSlides: next });
   };
 
   const clearSlide = (index: number) => {
-    const next = [...slides];
-    next[index] = "";
+    const next = slides.map((slide, i) =>
+      i === index ? { ...slide, image: "" } : slide,
+    );
     setF({ ...f, backgroundSlides: next });
   };
 
+  const updateFloat = (index: number, value: string) => {
+    const next = [...floats];
+    next[index] = value;
+    setF({ ...f, floatingImages: next });
+  };
+
+  const clearFloat = (index: number) => {
+    const next = [...floats];
+    next[index] = "";
+    setF({ ...f, floatingImages: next });
+  };
+
+  const saveHero = () => {
+    setHero({
+      tagline: f.tagline,
+      image: f.image,
+      floatingImages: normalizeFloatingImages(f.floatingImages),
+      aboutImage: f.aboutImage,
+      backgroundSlides: normalizeBackgroundSlides(f.backgroundSlides),
+      heroBadge: f.heroBadge,
+      heroTitleBefore: f.heroTitleBefore,
+      heroTitleAccent: f.heroTitleAccent,
+      heroTitleAfter: f.heroTitleAfter,
+    });
+    toast.success("Saved");
+  };
+
   return (
-    <Card className="max-w-3xl">
+    <div className="space-y-6 max-w-3xl">
+    <Card>
       <h2 className="font-display text-2xl text-primary mb-4">Site Images & Hero</h2>
       <div className="space-y-6">
-        <Field label="Hero tagline">
-          <Input value={f.tagline} onChange={(e) => setF({ ...f, tagline: e.target.value })} />
-        </Field>
+        <div>
+          <Label className="text-sm font-medium">Hero headline</Label>
+          <p className="mt-1 mb-3 text-xs text-muted-foreground">
+            Text beside the moving photo on the homepage.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Badge">
+              <Input
+                value={f.heroBadge}
+                onChange={(e) => setF({ ...f, heroBadge: e.target.value })}
+                placeholder="Dessert Cafe · Chicago"
+              />
+            </Field>
+            <Field label="Tagline">
+              <Input value={f.tagline} onChange={(e) => setF({ ...f, tagline: e.target.value })} />
+            </Field>
+            <Field label="Title — first word">
+              <Input
+                value={f.heroTitleBefore}
+                onChange={(e) => setF({ ...f, heroTitleBefore: e.target.value })}
+                placeholder="Sweet"
+              />
+            </Field>
+            <Field label="Title — accent (script)">
+              <Input
+                value={f.heroTitleAccent}
+                onChange={(e) => setF({ ...f, heroTitleAccent: e.target.value })}
+                placeholder="Drip"
+              />
+            </Field>
+            <div className="sm:col-span-2">
+              <Field label="Title — last line">
+                <Input
+                  value={f.heroTitleAfter}
+                  onChange={(e) => setF({ ...f, heroTitleAfter: e.target.value })}
+                  placeholder="Every Day."
+                />
+              </Field>
+            </div>
+          </div>
+        </div>
 
         <div>
           <Label className="text-sm font-medium">Rotating background ({HERO_SLIDE_COUNT} images)</Label>
           <p className="mt-1 mb-3 text-xs text-muted-foreground">
-            Homepage slideshow behind the hero — drag & drop up to {HERO_SLIDE_COUNT} photos.
+            Homepage slideshow behind the hero — drag & drop photos and add optional text on each slide.
           </p>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {slides.map((src, i) => (
-              <div key={i}>
-                <span className="mb-1.5 block text-xs font-medium text-muted-foreground">Slide {i + 1}</span>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {slides.map((slide, i) => (
+              <div key={i} className="rounded-xl border bg-muted/20 p-3">
+                <span className="mb-2 block text-xs font-medium text-muted-foreground">Slide {i + 1}</span>
                 <ImageDropzone
-                  value={src}
-                  onChange={(v) => updateSlide(i, v)}
+                  value={slide.image}
+                  onChange={(v) => updateSlideImage(i, v)}
                   onClear={() => clearSlide(i)}
                   previewClassName="aspect-[4/3]"
                 />
+                <div className="mt-3">
+                  <Field label="Text on slide">
+                    <Input
+                      value={slide.caption}
+                      onChange={(e) => updateSlideCaption(i, e.target.value)}
+                      placeholder="Optional caption shown on this photo"
+                    />
+                  </Field>
+                </div>
               </div>
             ))}
           </div>
         </div>
 
         <div>
-          <Label className="text-sm font-medium">Hero showcase image</Label>
-          <p className="mt-1 mb-2 text-xs text-muted-foreground">Large photo beside the headline on desktop.</p>
+          <Label className="text-sm font-medium">Main moving hero image</Label>
+          <p className="mt-1 mb-2 text-xs text-muted-foreground">
+            The large dessert photo that floats beside the headline on desktop.
+          </p>
           <ImageDropzone
             value={f.image}
             onChange={(v) => setF({ ...f, image: v })}
             onClear={() => setF({ ...f, image: "" })}
             previewClassName="aspect-square max-h-52"
           />
+        </div>
+
+        <div>
+          <Label className="text-sm font-medium">Floating side images ({FLOAT_IMAGE_COUNT})</Label>
+          <p className="mt-1 mb-3 text-xs text-muted-foreground">
+            Small decorative photos that move around the main hero image on desktop.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {floats.map((src, i) => (
+              <div key={i}>
+                <span className="mb-1.5 block text-xs font-medium text-muted-foreground">Float {i + 1}</span>
+                <ImageDropzone
+                  value={src}
+                  onChange={(v) => updateFloat(i, v)}
+                  onClear={() => clearFloat(i)}
+                  previewClassName="aspect-square"
+                />
+              </div>
+            ))}
+          </div>
         </div>
 
         <div>
@@ -698,20 +911,78 @@ function SitePanel() {
 
         <Button
           className="rounded-full gradient-choco text-primary-foreground"
-          onClick={() => {
-            setHero({
-              tagline: f.tagline,
-              image: f.image,
-              aboutImage: f.aboutImage,
-              backgroundSlides: normalizeBackgroundSlides(f.backgroundSlides),
-            });
-            toast.success("Saved");
-          }}
+          onClick={saveHero}
         >
           Save changes
         </Button>
       </div>
     </Card>
+
+    <Card>
+      <div className="mb-4 flex items-center gap-2">
+        <KeyRound className="h-5 w-5 text-accent" />
+        <h2 className="font-display text-2xl text-primary">Admin login</h2>
+      </div>
+      <p className="mb-4 text-sm text-muted-foreground">
+        Change the username and password used to sign in to this dashboard.
+      </p>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Username">
+          <Input
+            value={account.username}
+            onChange={(e) => setAccount({ ...account, username: e.target.value })}
+            autoComplete="username"
+          />
+        </Field>
+        <Field label="Current password *">
+          <Input
+            type="password"
+            value={account.currentPassword}
+            onChange={(e) => setAccount({ ...account, currentPassword: e.target.value })}
+            autoComplete="current-password"
+          />
+        </Field>
+        <Field label="New password *">
+          <Input
+            type="password"
+            value={account.password}
+            onChange={(e) => setAccount({ ...account, password: e.target.value })}
+            autoComplete="new-password"
+          />
+        </Field>
+        <Field label="Confirm new password *">
+          <Input
+            type="password"
+            value={account.confirm}
+            onChange={(e) => setAccount({ ...account, confirm: e.target.value })}
+            autoComplete="new-password"
+          />
+        </Field>
+      </div>
+      <Button
+        className="mt-4 rounded-full gradient-choco text-primary-foreground"
+        onClick={() => {
+          if (account.password !== account.confirm) {
+            toast.error("New passwords do not match");
+            return;
+          }
+          const result = updateCredentials({
+            username: account.username,
+            password: account.password,
+            currentPassword: account.currentPassword,
+          });
+          if (!result.ok) {
+            toast.error(result.error);
+            return;
+          }
+          toast.success("Admin login updated");
+          setAccount({ username: account.username, password: "", confirm: "", currentPassword: "" });
+        }}
+      >
+        Save admin login
+      </Button>
+    </Card>
+    </div>
   );
 }
 

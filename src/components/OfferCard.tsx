@@ -49,7 +49,7 @@ export function OfferCard({ offer, index = 0, className = "" }: OfferCardProps) 
             className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
             loading="lazy"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-primary/90 via-primary/35 to-transparent" />
+          <div className="overlay-pink-card absolute inset-0" />
           <span className="absolute left-4 top-4 rounded-full bg-accent px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-primary sm:text-xs">
             Offer
           </span>

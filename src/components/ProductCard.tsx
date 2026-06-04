@@ -16,7 +16,7 @@ export function ProductCard({ p, index = 0 }: { p: Product; index?: number }) {
           {p.image && (
             <img src={p.image} alt={p.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" />
           )}
-          <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-primary/70 to-transparent opacity-0 group-hover:opacity-100 transition hidden sm:block" />
+          <div className="overlay-pink-card-hover absolute inset-x-0 bottom-0 h-1/2 opacity-0 transition group-hover:opacity-100 hidden sm:block" />
           <span className="absolute top-2 right-2 sm:top-3 sm:right-3 glass px-2 py-0.5 sm:px-3 sm:py-1 rounded-full text-xs sm:text-sm font-semibold text-primary">{fmt(p.price)}</span>
         </div>
         <h3 className="mt-2 sm:mt-4 text-sm sm:text-lg font-semibold group-hover:text-primary transition line-clamp-2">{p.name}</h3>

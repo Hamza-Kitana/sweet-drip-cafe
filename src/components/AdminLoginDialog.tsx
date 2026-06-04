@@ -9,18 +9,19 @@ import { toast } from "sonner";
 import { useAdmin } from "@/lib/store";
 
 export function AdminLoginDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
-  const { isAdmin, setAdmin } = useAdmin();
+  const { isAdmin, setAdmin, login } = useAdmin();
   const navigate = useNavigate();
   const [u, setU] = useState("");
   const [p, setP] = useState("");
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (u === "admin" && p === "admin123") {
-      setAdmin(true);
+    if (login(u, p)) {
       toast.success("Welcome back, Admin");
       onOpenChange(false);
       navigate({ to: "/admin" });
+      setU("");
+      setP("");
     } else {
       toast.error("Invalid credentials");
     }

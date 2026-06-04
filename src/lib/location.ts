@@ -1,6 +1,10 @@
 export const CAFE_ADDRESS = "1658 E 53rd St, Chicago, IL 60615";
 export const CAFE_LAT = 41.7997416;
 export const CAFE_LNG = -87.5843009;
+export const CAFE_EMAIL = "admin@sweetdripcafe.com";
+export const CAFE_HOURS = "10:00 AM – 9:00 PM";
+export const CAFE_HOURS_FOOTER = `Mon–Sun · ${CAFE_HOURS}`;
+export const CAFE_HERO_OPENS = "10AM";
 
 export const CAFE_MAPS_URL = "https://maps.app.goo.gl/1EB8RsLy8dxLGQ5J9";
 

@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Mail, Phone, MapPin, Clock, Instagram, Facebook } from "lucide-react";
 import { motion } from "motion/react";
 import { MapLocationBox } from "@/components/MapLocationBox";
+import { CAFE_EMAIL, CAFE_HOURS } from "@/lib/location";
 
 export const Route = createFileRoute("/contact")({
   head: () => ({ meta: [{ title: "Contact — Sweet Drip" }] }),
@@ -23,8 +24,8 @@ function ContactPage() {
       >
         <InfoCard icon={MapPin} title="Visit us" lines={["1658 E 53rd St", "Chicago, IL 60615"]} />
         <InfoCard icon={Phone} title="Call" lines={["+1 (773) 966-4332"]} />
-        <InfoCard icon={Mail} title="Email" lines={["hello@sweetdrip.cafe"]} />
-        <InfoCard icon={Clock} title="Hours" lines={["Monday to Sunday", "9:00 AM – 9:00 PM"]} />
+        <InfoCard icon={Mail} title="Email" lines={[CAFE_EMAIL]} />
+        <InfoCard icon={Clock} title="Hours" lines={["Monday to Sunday", CAFE_HOURS]} />
       </motion.div>
 
       <div className="mt-10 sm:mt-12 text-center">

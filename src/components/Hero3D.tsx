@@ -7,6 +7,7 @@ import float2 from "@/assets/float-2.png";
 import float3 from "@/assets/float-3.png";
 import heroDessert from "@/assets/hero-dessert.jpg";
 import { activeBackgroundSlides, useShop } from "@/lib/store";
+import { CAFE_HERO_OPENS } from "@/lib/location";
 import { isOffersSectionVisible } from "@/lib/catalog";
 import { OFFERS_MENU_FILTER } from "@/lib/offers";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -19,6 +20,11 @@ export function Hero3D() {
     () => activeBackgroundSlides(hero.backgroundSlides),
     [hero.backgroundSlides],
   );
+  const floats = hero.floatingImages ?? [];
+  const badge = hero.heroBadge || "Dessert Cafe · Chicago";
+  const titleBefore = hero.heroTitleBefore || "Sweet";
+  const titleAccent = hero.heroTitleAccent || "Drip";
+  const titleAfter = hero.heroTitleAfter || "Every Day.";
   const isMobile = useIsMobile();
   const { scrollY } = useScroll();
   const y1 = useTransform(scrollY, [0, 600], [0, isMobile ? 0 : -150]);
@@ -30,7 +36,7 @@ export function Hero3D() {
 
   return (
     <section ref={ref} className="relative overflow-hidden md:min-h-[100svh]">
-      <HeroRotatingBackground images={bgSlides} />
+      <HeroRotatingBackground slides={bgSlides} />
 
       <div className="pointer-events-none absolute inset-0 z-[1] hidden md:block">
         {Array.from({ length: 14 }).map((_, i) => (
@@ -54,12 +60,13 @@ export function Hero3D() {
           className="text-center"
         >
           <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass text-primary text-[10px] font-semibold uppercase tracking-widest">
-            <Sparkles className="w-3 h-3" /> Dessert Cafe · Chicago
+            <Sparkles className="w-3 h-3" /> {badge}
           </span>
           <h1 className="mt-4 text-[2.35rem] leading-[1.05] font-display text-primary">
-            Sweet <span className="font-script text-gradient-gold">Drip</span>
+            {titleBefore}{" "}
+            <span className="font-script text-gradient-gold">{titleAccent}</span>
             <br />
-            Every Day.
+            {titleAfter}
           </h1>
           <p className="mt-3 text-base text-muted-foreground mx-auto max-w-sm">{hero.tagline}</p>
         </motion.div>
@@ -97,7 +104,7 @@ export function Hero3D() {
 
         <div className="mt-8 grid grid-cols-2 gap-4 text-center text-sm">
           <div className="rounded-2xl glass p-4 border shadow-soft">
-            <div className="text-2xl font-display text-primary">9AM</div>
+            <div className="text-2xl font-display text-primary">{CAFE_HERO_OPENS}</div>
             <div className="text-muted-foreground text-xs mt-1">Opens daily</div>
           </div>
           <div className="rounded-2xl glass p-4 border shadow-soft">
@@ -117,12 +124,13 @@ export function Hero3D() {
           className="relative max-w-xl"
         >
           <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass text-primary text-xs font-semibold uppercase tracking-widest">
-            <Sparkles className="w-3.5 h-3.5" /> Dessert Cafe · Chicago
+            <Sparkles className="w-3.5 h-3.5" /> {badge}
           </span>
           <h1 className="mt-5 text-5xl lg:text-7xl xl:text-8xl font-display leading-[0.95] text-primary">
-            Sweet <span className="font-script text-gradient-gold">Drip</span>
+            {titleBefore}{" "}
+            <span className="font-script text-gradient-gold">{titleAccent}</span>
             <br />
-            Every Day.
+            {titleAfter}
           </h1>
           <p className="mt-5 text-lg text-muted-foreground max-w-md">{hero.tagline}</p>
           <div className="mt-7 flex flex-wrap gap-3">
@@ -144,7 +152,7 @@ export function Hero3D() {
           </div>
           <div className="mt-10 flex items-center gap-8 text-sm">
             <div>
-              <div className="text-3xl font-display text-primary">9AM</div>
+              <div className="text-3xl font-display text-primary">{CAFE_HERO_OPENS}</div>
               <div className="text-muted-foreground">Opens daily</div>
             </div>
             <div className="h-10 w-px bg-border" />
@@ -167,19 +175,19 @@ export function Hero3D() {
               className="absolute inset-0 m-auto h-[88%] w-[88%] object-contain drop-shadow-2xl animate-float-slow"
             />
             <motion.img
-              src={float1}
+              src={floats[0] || float1}
               alt=""
               style={{ y: y1 }}
               className="absolute left-0 top-[8%] z-10 w-24 rotate-[-12deg] drop-shadow-xl lg:w-32 xl:w-36"
             />
             <motion.img
-              src={float2}
+              src={floats[1] || float2}
               alt=""
               style={{ y: y2 }}
               className="absolute bottom-[6%] right-0 z-10 w-24 rotate-[8deg] drop-shadow-xl lg:w-32 xl:w-40"
             />
             <motion.img
-              src={float3}
+              src={floats[2] || float3}
               alt=""
               style={{ y: y3 }}
               className="absolute right-[6%] top-[28%] z-10 w-20 rotate-[14deg] drop-shadow-xl lg:w-28 xl:w-32"
