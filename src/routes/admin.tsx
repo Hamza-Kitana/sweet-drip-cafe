@@ -10,8 +10,19 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { LogOut, Plus, Pencil, Trash2, Image as ImageIcon, Package, Tag, Receipt, Home, Layers, Eye, EyeOff, Search, X, UtensilsCrossed, KeyRound } from "lucide-react";
+import { LogOut, Plus, Pencil, Trash2, Image as ImageIcon, Package, Tag, Receipt, Home, Layers, Eye, EyeOff, Search, X, UtensilsCrossed, KeyRound, CalendarDays } from "lucide-react";
 import { isCategoryVisible } from "@/lib/catalog";
+import {
+  ANALYTICS_RANGE_OPTIONS,
+  buildOrderDayOptions,
+  filterOrdersByAnalyticsRange,
+  filterOrdersByDay,
+  formatDayLabel,
+  orderAnalytics,
+  resolveOrderDayFilter,
+  type AnalyticsRange,
+  type OrderDayFilter,
+} from "@/lib/admin-dates";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin")({
@@ -141,35 +152,111 @@ function Card({ children, className = "" }: any) {
   return <div className={`rounded-3xl bg-card border shadow-soft p-6 ${className}`}>{children}</div>;
 }
 
+function StatCard({ label, value }: { label: string; value: string | number }) {
+  return (
+    <Card className="border-[oklch(0.72_0.09_350/0.28)] bg-gradient-to-br from-[oklch(0.98_0.02_350)] to-card">
+      <div className="text-sm font-medium text-muted-foreground">{label}</div>
+      <div className="mt-1 text-3xl font-display text-primary">{value}</div>
+    </Card>
+  );
+}
+
+function SalesSummaryBar({ orders }: { orders: Order[] }) {
+  const { revenue, count, newCount, doneCount, avg } = orderAnalytics(orders);
+
+  return (
+    <div className="flex flex-wrap gap-2 rounded-2xl border border-[oklch(0.72_0.09_350/0.22)] bg-muted/30 px-4 py-3 text-sm">
+      <span className="font-medium text-primary">{count} order{count === 1 ? "" : "s"}</span>
+      <span className="text-muted-foreground">·</span>
+      <span className="font-semibold text-primary">{fmt(revenue)} revenue</span>
+      <span className="text-muted-foreground">·</span>
+      <span className="text-muted-foreground">{fmt(avg)} avg</span>
+      {newCount > 0 && (
+        <>
+          <span className="text-muted-foreground">·</span>
+          <span className="font-medium text-accent">{newCount} new</span>
+        </>
+      )}
+      {doneCount > 0 && (
+        <>
+          <span className="text-muted-foreground">·</span>
+          <span className="text-muted-foreground">{doneCount} completed</span>
+        </>
+      )}
+    </div>
+  );
+}
+
 function Overview() {
   const { orders, products, categories, offers } = useShop();
-  const revenue = orders.reduce((s, o) => s + o.total, 0);
-  const stats = [
-    { label: "Revenue", value: fmt(revenue) },
-    { label: "Orders", value: orders.length },
-    { label: "Products", value: products.length },
-    { label: "Categories", value: categories.length },
-    { label: "Active Offers", value: offers.filter(o => o.active).length },
-  ];
+  const [range, setRange] = useState<AnalyticsRange>("today");
+  const filtered = useMemo(() => filterOrdersByAnalyticsRange(orders, range), [orders, range]);
+  const { revenue, count, newCount, avg } = orderAnalytics(filtered);
+  const rangeLabel = ANALYTICS_RANGE_OPTIONS.find((o) => o.value === range)?.label ?? "Period";
+
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-display text-primary">Welcome back</h1>
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {stats.map(s => (
-          <Card key={s.label} className="border-[oklch(0.72_0.09_350/0.28)] bg-gradient-to-br from-[oklch(0.98_0.02_350)] to-card">
-            <div className="text-sm font-medium text-muted-foreground">{s.label}</div>
-            <div className="mt-1 text-3xl font-display text-primary">{s.value}</div>
-          </Card>
-        ))}
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-display text-primary">Welcome back</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Sales insights for {rangeLabel.toLowerCase()}.</p>
+        </div>
+        <div className="min-w-[200px]">
+          <Label className="mb-1.5 block text-xs font-medium text-muted-foreground">Analytics period</Label>
+          <Select value={range} onValueChange={(v) => setRange(v as AnalyticsRange)}>
+            <SelectTrigger className="rounded-xl">
+              <CalendarDays className="mr-2 h-4 w-4 shrink-0 text-muted-foreground" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {ANALYTICS_RANGE_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
+
+      <SalesSummaryBar orders={filtered} />
+
+      <div>
+        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Sales</p>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard label="Revenue" value={fmt(revenue)} />
+          <StatCard label="Orders" value={count} />
+          <StatCard label="Avg order" value={fmt(avg)} />
+          <StatCard label="New pending" value={newCount} />
+        </div>
+      </div>
+
+      <div>
+        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Catalog</p>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <StatCard label="Products" value={products.length} />
+          <StatCard label="Categories" value={categories.length} />
+          <StatCard label="Active Offers" value={offers.filter((o) => o.active).length} />
+        </div>
+      </div>
+
       <Card>
-        <h2 className="font-display text-xl text-primary mb-4">Recent orders</h2>
-        {orders.length === 0 ? <p className="text-muted-foreground">No orders yet.</p> : (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-display text-xl text-primary">Orders · {rangeLabel}</h2>
+          <span className="text-sm text-muted-foreground">{count} in period</span>
+        </div>
+        {filtered.length === 0 ? (
+          <p className="text-muted-foreground">No orders in this period.</p>
+        ) : (
           <ul className="divide-y">
-            {orders.slice(0, 5).map(o => (
-              <li key={o.id} className="py-3 flex justify-between text-sm">
-                <span>#{o.id} · {o.customer.name}</span>
-                <span className="font-semibold">{fmt(o.total)}</span>
+            {filtered.slice(0, 8).map((o) => (
+              <li key={o.id} className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
+                <div>
+                  <span className="font-medium">#{o.id} · {o.customer.name}</span>
+                  <span className="ml-2 text-xs capitalize text-muted-foreground">{o.status}</span>
+                  <div className="text-xs text-muted-foreground">
+                    {new Date(o.createdAt).toLocaleString()} · Pickup {o.customer.date} {o.customer.time}
+                  </div>
+                </div>
+                <span className="font-display text-lg text-primary">{fmt(o.total)}</span>
               </li>
             ))}
           </ul>
@@ -181,27 +268,60 @@ function Overview() {
 
 function OrdersPanel() {
   const { orders, updateOrderStatus } = useShop();
-  const newCount = orders.filter((o) => o.status === "new").length;
+  const dayOptions = useMemo(() => buildOrderDayOptions(orders), [orders]);
+  const [dayFilter, setDayFilter] = useState<OrderDayFilter>("today");
+  const filtered = useMemo(() => filterOrdersByDay(orders, dayFilter), [orders, dayFilter]);
+  const { newCount } = orderAnalytics(filtered);
+  const periodLabel =
+    dayFilter === "all"
+      ? "All days"
+      : formatDayLabel(resolveOrderDayFilter(dayFilter));
 
   return (
     <Card>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
         <div>
           <h2 className="font-display text-2xl text-primary">Orders</h2>
           {newCount > 0 && (
-            <p className="mt-1 text-sm text-accent">{newCount} new order(s) waiting</p>
+            <p className="mt-1 text-sm text-accent">{newCount} new order(s) in this view</p>
           )}
         </div>
-        <p className="text-sm text-muted-foreground">{orders.length} total</p>
+        <div className="w-full sm:w-[240px]">
+          <Label className="mb-1.5 block text-xs font-medium text-muted-foreground">View orders for</Label>
+          <Select value={dayFilter} onValueChange={(v) => setDayFilter(v as OrderDayFilter)}>
+            <SelectTrigger className="rounded-xl">
+              <CalendarDays className="mr-2 h-4 w-4 shrink-0 text-muted-foreground" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {dayOptions.map((o) => (
+                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
-      {orders.length === 0 ? <p className="text-muted-foreground">No orders yet.</p> : (
+
+      <div className="mb-5 space-y-2">
+        <p className="text-sm font-medium text-primary">{periodLabel}</p>
+        <SalesSummaryBar orders={filtered} />
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="rounded-2xl border border-dashed bg-muted/20 px-4 py-10 text-center">
+          <p className="text-muted-foreground">No orders for {periodLabel.toLowerCase()}.</p>
+          <p className="mt-1 text-xs text-muted-foreground">Choose another day from the menu above.</p>
+        </div>
+      ) : (
         <div className="space-y-3">
-          {orders.map(o => (
+          {filtered.map((o) => (
             <div key={o.id} className={`border rounded-2xl p-4 ${o.status === "new" ? "border-accent/50 bg-accent/5" : ""}`}>
               <div className="flex flex-wrap justify-between gap-2 items-start">
                 <div>
                   <div className="font-semibold">#{o.id} · {o.customer.name}</div>
-                  <div className="text-xs text-muted-foreground">{new Date(o.createdAt).toLocaleString()} · {o.customer.phone} · {o.customer.email}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {new Date(o.createdAt).toLocaleString()} · {o.customer.phone} · {o.customer.email}
+                  </div>
                   <div className="text-xs text-muted-foreground">
                     Pickup: {o.customer.date} {o.customer.time}
                     {o.customer.guests != null ? ` · ${o.customer.guests} guests` : ""}

@@ -283,6 +283,18 @@
     }
   }
   .gradient-hero { background: var(--gradient-hero); }
+  .page-loader-bg {
+    background:
+      radial-gradient(ellipse 85% 55% at 100% 0%, oklch(0.86 0.09 350 / 0.32), transparent 52%),
+      radial-gradient(ellipse 70% 45% at 0% 100%, oklch(0.88 0.07 348 / 0.26), transparent 48%),
+      radial-gradient(ellipse 55% 40% at 50% 45%, oklch(0.94 0.04 355 / 0.18), transparent 58%),
+      linear-gradient(
+        165deg,
+        oklch(0.97 0.04 350) 0%,
+        oklch(0.95 0.05 348) 45%,
+        oklch(0.92 0.06 345) 100%
+      );
+  }
   .gradient-choco { background: var(--gradient-choco); }
   .gradient-gold { background: var(--gradient-gold); }
   .site-footer {

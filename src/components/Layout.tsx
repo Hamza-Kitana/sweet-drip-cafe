@@ -37,13 +37,18 @@ function PageLoader() {
           initial={{ opacity: 1 }}
           exit={{ opacity: 0, y: -40 }}
           transition={{ duration: 0.6 }}
-          className="fixed inset-0 z-[100] gradient-hero flex items-center justify-center"
+          className="page-loader-bg fixed inset-0 z-[100] flex items-center justify-center overflow-hidden"
         >
+          <div className="pointer-events-none absolute inset-0" aria-hidden>
+            <div className="absolute -right-16 top-[12%] h-72 w-72 rounded-full bg-[oklch(0.84_0.11_350/0.22)] blur-3xl" />
+            <div className="absolute -left-20 bottom-[10%] h-64 w-64 rounded-full bg-[oklch(0.88_0.09_348/0.18)] blur-3xl" />
+            <div className="absolute left-1/2 top-1/2 h-80 w-80 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[oklch(0.9_0.07_355/0.14)] blur-3xl" />
+          </div>
           <motion.div
             initial={{ scale: 0.6, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ duration: 0.7, ease: "easeOut" }}
-            className="flex flex-col items-center gap-6"
+            className="relative z-[1] flex flex-col items-center gap-6"
           >
             <motion.img
               src={logo}
@@ -56,7 +61,7 @@ function PageLoader() {
               {[0, 1, 2].map(i => (
                 <motion.span
                   key={i}
-                  className="w-2.5 h-2.5 rounded-full bg-primary"
+                  className="h-2.5 w-2.5 rounded-full bg-[oklch(0.62_0.12_348)]"
                   animate={{ y: [0, -10, 0] }}
                   transition={{ duration: 0.7, repeat: Infinity, delay: i * 0.15 }}
                 />
