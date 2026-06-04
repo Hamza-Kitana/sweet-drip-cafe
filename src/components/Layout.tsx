@@ -1,7 +1,7 @@
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { ShoppingBag, Menu as MenuIcon, X, Lock, Instagram, Facebook, Phone, MapPin, Clock, ArrowRight } from "lucide-react";
+import { ShoppingBag, Menu as MenuIcon, X, Lock, Instagram, Facebook, Phone, MapPin, Clock } from "lucide-react";
 import { CAFE_ADDRESS, CAFE_MAPS_URL } from "@/lib/location";
 import logo from "@/assets/logo.png";
 import { useCart, useAdmin } from "@/lib/store";
@@ -224,8 +224,8 @@ export function Layout() {
           <div className="grid gap-12 lg:grid-cols-12 lg:gap-10">
             <div className="flex flex-col items-center text-center lg:col-span-5 lg:items-start lg:text-left">
               <Link to="/" className="inline-block transition hover:opacity-90">
-                <span className="inline-flex rounded-2xl bg-primary-foreground px-4 py-2.5 shadow-[0_8px_28px_rgba(0,0,0,0.28)] ring-1 ring-primary-foreground/20">
-                  <img src={logo} alt="Sweet Drip" className="h-[4.5rem] w-auto md:h-24" />
+                <span className="inline-flex rounded-2xl bg-primary-foreground px-5 py-3 shadow-[0_8px_28px_rgba(0,0,0,0.28)] ring-1 ring-primary-foreground/20 md:px-6 md:py-4">
+                  <img src={logo} alt="Sweet Drip" className="h-28 w-auto md:h-36 lg:h-40" />
                 </span>
               </Link>
               <p className="mt-5 max-w-xs text-sm leading-relaxed text-primary-foreground/75">
@@ -250,12 +250,6 @@ export function Layout() {
                   </a>
                 ))}
               </div>
-              <Link
-                to="/menu"
-                className="mt-7 inline-flex items-center gap-2 rounded-full gradient-gold px-6 py-2.5 text-sm font-semibold text-primary shadow-soft transition hover:scale-[1.02]"
-              >
-                Browse Menu <ArrowRight className="h-4 w-4" />
-              </Link>
             </div>
 
             <div className="grid gap-10 sm:grid-cols-3 lg:col-span-7 lg:gap-8">
