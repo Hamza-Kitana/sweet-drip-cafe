@@ -13,6 +13,8 @@ import appCss from "../styles.css?url";
 import favicon from "@/assets/Sweet_Drip_Logo..png?url";
 import { Layout } from "../components/Layout";
 import { Toaster } from "../components/ui/sonner";
+import { hydrateShopFromApi } from "@/lib/api/hydrate";
+import { isApiMode } from "@/lib/api/client";
 import { initShopSync } from "@/lib/store";
 
 function NotFoundComponent() {
@@ -122,6 +124,7 @@ function RootComponent() {
 
   useEffect(() => {
     initShopSync();
+    if (isApiMode) void hydrateShopFromApi();
   }, []);
 
   return (

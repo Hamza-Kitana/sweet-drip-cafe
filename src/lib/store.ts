@@ -58,7 +58,10 @@ export type Order = {
   /** Tax rate % at time of order */
   taxRate?: number;
   total: number;
-  status: "new" | "preparing" | "ready" | "done" | "cancelled";
+  status: "new" | "preparing" | "ready" | "done" | "cancelled" | "awaiting_payment";
+  paymentStatus?: "pending" | "paid" | "failed";
+  paymentFailureReason?: string;
+  stripePaymentIntentId?: string;
 };
 
 export type LargeOrderRequest = {

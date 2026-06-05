@@ -2,6 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { motion } from "motion/react";
 import { useShop } from "@/lib/store";
+import { isApiMode } from "@/lib/api/client";
+import * as api from "@/lib/api/backend";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -48,17 +50,25 @@ function CateringPage() {
   });
   const [sent, setSent] = useState(false);
 
-  const onSubmit = (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const result = schema.safeParse(form);
     if (!result.success) {
       toast.error(result.error.issues[0].message);
       return;
     }
-    addLargeOrder(result.data);
-    setSent(true);
-    toast.success("Catering request sent! We'll contact you soon.");
-    setForm({ name: "", email: "", phone: "", guests: "1", date: "", time: "", message: "" });
+    try {
+      if (isApiMode) {
+        await api.submitCatering(result.data);
+      } else {
+        addLargeOrder(result.data);
+      }
+      setSent(true);
+      toast.success("Catering request sent! We'll contact you soon.");
+      setForm({ name: "", email: "", phone: "", guests: "1", date: "", time: "", message: "" });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not send request");
+    }
   };
 
   return (

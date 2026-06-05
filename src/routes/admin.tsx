@@ -24,6 +24,24 @@ import {
   type OrderDayFilter,
 } from "@/lib/admin-dates";
 import { toast } from "sonner";
+import { isApiMode, setAdminToken } from "@/lib/api/client";
+import * as api from "@/lib/api/backend";
+import { hydrateShopFromApi, refreshAdminDataFromApi } from "@/lib/api/hydrate";
+import {
+  patchCategory,
+  patchCateringStatus,
+  patchOffer,
+  patchOrderStatus,
+  removeCategory,
+  removeOffer,
+  removeProduct,
+  saveCategory,
+  saveHeroToApi,
+  saveOffer,
+  saveOffersVisibleToApi,
+  saveProduct,
+  saveTaxRateToApi,
+} from "@/lib/api/admin-actions";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({ meta: [{ title: "Admin · Sweet Drip" }] }),
@@ -45,7 +63,11 @@ function Dashboard() {
 
   useEffect(() => {
     initShopSync();
-  }, []);
+    if (isApiMode) {
+      void hydrateShopFromApi();
+      if (isAdmin) void refreshAdminDataFromApi();
+    }
+  }, [isAdmin]);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -130,7 +152,7 @@ function Dashboard() {
             <Button
               variant="outline"
               className="mt-4 w-full border-sidebar-border bg-transparent text-[var(--footer-muted)] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-              onClick={() => { setAdmin(false); toast.success("Signed out"); }}
+              onClick={() => { setAdminToken(null); setAdmin(false); toast.success("Signed out"); }}
             >
               <LogOut className="w-4 h-4 mr-2" />Sign out
             </Button>
@@ -152,7 +174,7 @@ function Dashboard() {
 }
 
 function SettingsPanel() {
-  const { taxRatePercent, setTaxRatePercent } = useShop();
+  const { taxRatePercent } = useShop();
   const { username, updateCredentials } = useAdmin();
   const [taxRate, setTaxRate] = useState(String(taxRatePercent));
   const [account, setAccount] = useState({
@@ -194,11 +216,15 @@ function SettingsPanel() {
         </Field>
         <Button
           className="mt-4 rounded-full"
-          onClick={() => {
+          onClick={async () => {
             const parsed = normalizeTaxRate(parseFloat(taxRate));
-            setTaxRatePercent(parsed);
-            setTaxRate(String(parsed));
-            toast.success(`Tax rate set to ${parsed}%`);
+            try {
+              await saveTaxRateToApi(parsed);
+              setTaxRate(String(parsed));
+              toast.success(`Tax rate set to ${parsed}%`);
+            } catch (err) {
+              toast.error(err instanceof Error ? err.message : "Could not save tax rate");
+            }
           }}
         >
           Save tax rate
@@ -248,22 +274,34 @@ function SettingsPanel() {
         </div>
         <Button
           className="mt-4 rounded-full"
-          onClick={() => {
+          onClick={async () => {
             if (account.password !== account.confirm) {
               toast.error("New passwords do not match");
               return;
             }
-            const result = updateCredentials({
-              username: account.username,
-              password: account.password,
-              currentPassword: account.currentPassword,
-            });
-            if (!result.ok) {
-              toast.error(result.error);
-              return;
+            try {
+              if (isApiMode) {
+                await api.updateAdminCredentials({
+                  username: account.username,
+                  password: account.password,
+                  currentPassword: account.currentPassword,
+                });
+              } else {
+                const result = updateCredentials({
+                  username: account.username,
+                  password: account.password,
+                  currentPassword: account.currentPassword,
+                });
+                if (!result.ok) {
+                  toast.error(result.error);
+                  return;
+                }
+              }
+              toast.success("Admin login updated");
+              setAccount({ username: account.username, password: "", confirm: "", currentPassword: "" });
+            } catch (err) {
+              toast.error(err instanceof Error ? err.message : "Could not update credentials");
             }
-            toast.success("Admin login updated");
-            setAccount({ username: account.username, password: "", confirm: "", currentPassword: "" });
           }}
         >
           Save admin login
@@ -346,11 +384,12 @@ function Overview() {
 
       <div>
         <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Sales</p>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           <StatCard label="Revenue" value={fmt(revenue)} />
           <StatCard label="Orders" value={count} />
           <StatCard label="Avg order" value={fmt(avg)} />
           <StatCard label="New pending" value={newCount} />
+          <StatCard label="Unpaid" value={filtered.filter((o) => o.paymentStatus && o.paymentStatus !== "paid").length} />
         </div>
       </div>
 
@@ -391,8 +430,23 @@ function Overview() {
   );
 }
 
+function paymentBadge(o: Order) {
+  if (!o.paymentStatus) return null;
+  const styles =
+    o.paymentStatus === "paid"
+      ? "bg-emerald-500/10 text-emerald-700"
+      : o.paymentStatus === "failed"
+        ? "bg-destructive/10 text-destructive"
+        : "bg-amber-500/10 text-amber-700";
+  return (
+    <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${styles}`}>
+      {o.paymentStatus === "paid" ? "Paid" : o.paymentStatus === "failed" ? "Payment failed" : "Unpaid"}
+    </span>
+  );
+}
+
 function OrdersPanel() {
-  const { orders, updateOrderStatus } = useShop();
+  const { orders } = useShop();
   const dayOptions = useMemo(() => buildOrderDayOptions(orders), [orders]);
   const [dayFilter, setDayFilter] = useState<OrderDayFilter>("today");
   const filtered = useMemo(() => filterOrdersByDay(orders, dayFilter), [orders, dayFilter]);
@@ -440,10 +494,11 @@ function OrdersPanel() {
       ) : (
         <div className="space-y-3">
           {filtered.map((o) => (
-            <div key={o.id} className={`border rounded-2xl p-4 ${o.status === "new" ? "border-accent/50 bg-accent/5" : ""}`}>
+            <div key={o.id} className={`border rounded-2xl p-4 ${o.status === "new" ? "border-accent/50 bg-accent/5" : ""} ${o.paymentStatus === "failed" || o.paymentStatus === "pending" ? "border-amber-400/40" : ""}`}>
               <div className="flex flex-wrap justify-between gap-2 items-start">
                 <div>
                   <div className="font-semibold">#{o.id} · {o.customer.name}</div>
+                  {paymentBadge(o)}
                   <div className="text-xs text-muted-foreground">
                     {new Date(o.createdAt).toLocaleString()} · {o.customer.phone} · {o.customer.email}
                   </div>
@@ -454,7 +509,7 @@ function OrdersPanel() {
                 </div>
                 <div className="text-right">
                   <div className="font-display text-xl">{fmt(o.total)}</div>
-                  <Select value={o.status} onValueChange={(v) => updateOrderStatus(o.id, v as Order["status"])}>
+                  <Select value={o.status} onValueChange={(v) => void patchOrderStatus(o.id, v as Order["status"])}>
                     <SelectTrigger className="w-36 mt-1"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {["new","preparing","ready","done","cancelled"].map(s => <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>)}
@@ -476,7 +531,7 @@ function OrdersPanel() {
 }
 
 function CateringPanel() {
-  const { largeOrders, updateLargeOrderStatus } = useShop();
+  const { largeOrders } = useShop();
   const newCount = largeOrders.filter((o) => o.status === "new").length;
 
   return (
@@ -512,7 +567,7 @@ function CateringPanel() {
                   </div>
                   {r.message && <p className="mt-2 text-sm italic text-muted-foreground">&ldquo;{r.message}&rdquo;</p>}
                 </div>
-                <Select value={r.status} onValueChange={(v) => updateLargeOrderStatus(r.id, v as LargeOrderRequest["status"])}>
+                <Select value={r.status} onValueChange={(v) => void patchCateringStatus(r.id, v as LargeOrderRequest["status"])}>
                   <SelectTrigger className="mt-1 w-36">
                     <SelectValue />
                   </SelectTrigger>
@@ -541,7 +596,7 @@ function productMatchesQuery(product: Product, query: string) {
 }
 
 function ProductsPanel() {
-  const { products, categories, addProduct, updateProduct, deleteProduct, addCategory, updateCategory, deleteCategory } = useShop();
+  const { products, categories } = useShop();
   const [editing, setEditing] = useState<Product | null>(null);
   const [open, setOpen] = useState(false);
   const [activeCategoryId, setActiveCategoryId] = useState("");
@@ -580,19 +635,23 @@ function ProductsPanel() {
     setOpen(true);
   };
 
-  const addSection = () => {
+  const addSection = async () => {
     if (!sectionName.trim()) {
       toast.error("Enter a section name");
       return;
     }
-    addCategory({
-      name: sectionName.trim(),
-      image: sectionImage || "https://images.unsplash.com/photo-1551024506-0bccd828d307?w=800",
-      visible: true,
-    });
-    setSectionName("");
-    setSectionImage("");
-    toast.success("Section added");
+    try {
+      await saveCategory(null, {
+        name: sectionName.trim(),
+        image: sectionImage || "https://images.unsplash.com/photo-1551024506-0bccd828d307?w=800",
+        visible: true,
+      });
+      setSectionName("");
+      setSectionImage("");
+      toast.success("Section added");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not add section");
+    }
   };
 
   return (
@@ -662,7 +721,7 @@ function ProductsPanel() {
                     <Input
                       className="max-w-xs font-semibold"
                       defaultValue={cat.name}
-                      onBlur={(e) => updateCategory(cat.id, { name: e.target.value })}
+                      onBlur={(e) => void patchCategory(cat.id, { name: e.target.value })}
                     />
                     <p className="mt-1 text-xs text-muted-foreground">
                       {sectionProducts.length} product(s)
@@ -674,7 +733,7 @@ function ProductsPanel() {
                     {isCategoryVisible(cat) ? <Eye className="h-3.5 w-3.5 text-accent" /> : <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />}
                     <Switch
                       checked={isCategoryVisible(cat)}
-                      onCheckedChange={(v) => updateCategory(cat.id, { visible: v })}
+                      onCheckedChange={(v) => void patchCategory(cat.id, { visible: v })}
                       aria-label={`Show ${cat.name} on website`}
                     />
                     <span className="text-xs font-medium">{isCategoryVisible(cat) ? "Visible" : "Hidden"}</span>
@@ -684,7 +743,7 @@ function ProductsPanel() {
                     variant="outline"
                     onClick={() => {
                       const url = prompt("New image URL", cat.image);
-                      if (url) updateCategory(cat.id, { image: url });
+                      if (url) void patchCategory(cat.id, { image: url });
                     }}
                   >
                     <ImageIcon className="h-3 w-3" />
@@ -693,7 +752,7 @@ function ProductsPanel() {
                     size="sm"
                     variant="outline"
                     onClick={() => {
-                      if (confirm(`Delete "${cat.name}" and all its products?`)) deleteCategory(cat.id);
+                      if (confirm(`Delete "${cat.name}" and all its products?`)) void removeCategory(cat.id).catch((err) => toast.error(err instanceof Error ? err.message : "Delete failed"));
                     }}
                   >
                     <Trash2 className="h-3 w-3" />
@@ -726,7 +785,7 @@ function ProductsPanel() {
                             size="sm"
                             variant="outline"
                             onClick={() => {
-                              if (confirm("Delete product?")) deleteProduct(p.id);
+                              if (confirm("Delete product?")) void removeProduct(p.id).catch((err) => toast.error(err instanceof Error ? err.message : "Delete failed"));
                             }}
                           >
                             <Trash2 className="h-3 w-3" />
@@ -747,10 +806,14 @@ function ProductsPanel() {
         editing={editing}
         categories={categories}
         defaultCategoryId={activeCategoryId}
-        onSave={(data: Omit<Product, "id">) => {
-          editing ? updateProduct(editing.id, data) : addProduct(data);
-          toast.success("Saved");
-          setOpen(false);
+        onSave={async (data: Omit<Product, "id">) => {
+          try {
+            await saveProduct(editing, data);
+            toast.success("Saved");
+            setOpen(false);
+          } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Could not save product");
+          }
         }}
       />
     </div>
@@ -854,7 +917,7 @@ function ProductDialog({ open, onOpenChange, editing, categories, defaultCategor
 }
 
 function OffersPanel() {
-  const { offers, addOffer, updateOffer, deleteOffer, offersSectionVisible, setOffersSectionVisible } = useShop();
+  const { offers, offersSectionVisible } = useShop();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Offer | null>(null);
   const startNew = () => { setEditing(null); setOpen(true); };
@@ -871,7 +934,7 @@ function OffersPanel() {
           {offersSectionVisible ? <Eye className="h-3.5 w-3.5 text-accent" /> : <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />}
           <Switch
             checked={offersSectionVisible}
-            onCheckedChange={setOffersSectionVisible}
+            onCheckedChange={(v) => void saveOffersVisibleToApi(v).catch((err) => toast.error(err instanceof Error ? err.message : "Could not save"))}
             aria-label="Show offers section on website"
           />
           <span className="text-xs font-medium">{offersSectionVisible ? "Visible" : "Hidden"}</span>
@@ -892,15 +955,23 @@ function OffersPanel() {
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground hidden sm:inline">{o.active ? "Live" : "Off"}</span>
-              <Switch checked={o.active} onCheckedChange={(v) => updateOffer(o.id, { active: v })} aria-label={`${o.active ? "Disable" : "Enable"} ${o.title}`} />
+              <Switch checked={o.active} onCheckedChange={(v) => void patchOffer(o.id, { active: v }).catch((err) => toast.error(err instanceof Error ? err.message : "Could not save"))} aria-label={`${o.active ? "Disable" : "Enable"} ${o.title}`} />
               <Button size="sm" variant="outline" onClick={() => { setEditing(o); setOpen(true); }}><Pencil className="w-3 h-3" /></Button>
-              <Button size="sm" variant="outline" onClick={() => { if (confirm("Delete?")) deleteOffer(o.id); }}><Trash2 className="w-3 h-3" /></Button>
+              <Button size="sm" variant="outline" onClick={() => { if (confirm("Delete?")) void removeOffer(o.id).catch((err) => toast.error(err instanceof Error ? err.message : "Delete failed")); }}><Trash2 className="w-3 h-3" /></Button>
             </div>
           </div>
         ))}
       </div>
       <OfferDialog open={open} onOpenChange={setOpen} editing={editing}
-        onSave={(d: Omit<Offer, "id">) => { editing ? updateOffer(editing.id, d) : addOffer(d); toast.success("Saved"); setOpen(false); }} />
+        onSave={async (d: Omit<Offer, "id">) => {
+          try {
+            await saveOffer(editing, d);
+            toast.success("Saved");
+            setOpen(false);
+          } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Could not save offer");
+          }
+        }} />
     </Card>
   );
 }
@@ -965,7 +1036,7 @@ function OfferDialog({ open, onOpenChange, editing, onSave }: any) {
 }
 
 function SitePanel() {
-  const { hero, setHero } = useShop();
+  const { hero } = useShop();
   const [f, setF] = useState<HeroSettings>(() => ({
     ...hero,
     backgroundSlides: normalizeBackgroundSlides(hero.backgroundSlides),
@@ -1008,19 +1079,23 @@ function SitePanel() {
     setF({ ...f, floatingImages: next });
   };
 
-  const saveHero = () => {
-    setHero({
-      tagline: f.tagline,
-      image: f.image,
-      floatingImages: normalizeFloatingImages(f.floatingImages),
-      aboutImage: f.aboutImage,
-      backgroundSlides: normalizeBackgroundSlides(f.backgroundSlides),
-      heroBadge: f.heroBadge,
-      heroTitleBefore: f.heroTitleBefore,
-      heroTitleAccent: f.heroTitleAccent,
-      heroTitleAfter: f.heroTitleAfter,
-    });
-    toast.success("Saved");
+  const saveHero = async () => {
+    try {
+      await saveHeroToApi({
+        tagline: f.tagline,
+        image: f.image,
+        floatingImages: normalizeFloatingImages(f.floatingImages),
+        aboutImage: f.aboutImage,
+        backgroundSlides: normalizeBackgroundSlides(f.backgroundSlides),
+        heroBadge: f.heroBadge,
+        heroTitleBefore: f.heroTitleBefore,
+        heroTitleAccent: f.heroTitleAccent,
+        heroTitleAfter: f.heroTitleAfter,
+      });
+      toast.success("Saved");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not save");
+    }
   };
 
   return (

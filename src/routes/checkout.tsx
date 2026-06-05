@@ -3,6 +3,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Elements } from "@stripe/react-stripe-js";
 import { loadStripe } from "@stripe/stripe-js";
 import { useCart, useShop, fmt, calcOrderTotal } from "@/lib/store";
+import { isApiMode } from "@/lib/api/client";
+import * as api from "@/lib/api/backend";
 import { createStripePaymentIntent } from "@/lib/api/payment.functions";
 import { StripePaymentForm } from "@/components/StripePaymentForm";
 import { Button } from "@/components/ui/button";
@@ -44,13 +46,13 @@ export const Route = createFileRoute("/checkout")({
 function CheckoutPage() {
   const { items, tip, setTip, clear, setLastOrderId } = useCart();
   const setDrawerOpen = useCart((s) => s.setDrawerOpen);
-  const addOrder = useShop((s) => s.addOrder);
   const taxRatePercent = useShop((s) => s.taxRatePercent);
   const navigate = useNavigate();
   const [step, setStep] = useState<"details" | "payment">("details");
   const [tipInput, setTipInput] = useState(tip > 0 ? String(tip) : "");
   const [form, setForm] = useState({ name: "", email: "", phone: "", date: "", time: "", message: "" });
   const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
 
@@ -76,23 +78,49 @@ function CheckoutPage() {
     setClientSecret(null);
 
     try {
-      const result = await createStripePaymentIntent({
-        data: {
+      if (isApiMode) {
+        const result = await api.checkoutOrder({
           items: items.map((i) => ({
             productId: i.productId,
             name: i.name,
             price: i.price,
             qty: i.qty,
+            note: i.note,
+            noteChoice: i.noteChoice,
+            image: i.image,
           })),
           tip: tipAmount,
-          taxRatePercent,
           customer: {
             name: customer.name,
             email: customer.email,
+            phone: customer.phone,
+            date: customer.date,
+            time: customer.time,
+            message: customer.message,
           },
-        },
-      });
-      setClientSecret(result.clientSecret);
+        });
+        setPendingOrderId(result.orderId);
+        setClientSecret(result.clientSecret);
+      } else {
+        const result = await createStripePaymentIntent({
+          data: {
+            items: items.map((i) => ({
+              productId: i.productId,
+              name: i.name,
+              price: i.price,
+              qty: i.qty,
+            })),
+            tip: tipAmount,
+            taxRatePercent,
+            customer: {
+              name: customer.name,
+              email: customer.email,
+            },
+          },
+        });
+        setPendingOrderId(null);
+        setClientSecret(result.clientSecret);
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Could not start payment";
       setPaymentError(message);
@@ -131,21 +159,35 @@ function CheckoutPage() {
     setStep("payment");
   };
 
-  const onPaymentSuccess = (paymentIntentId: string) => {
-    const data = schema.parse(form);
-    const order = addOrder({
-      items,
-      customer: data,
-      subtotal,
-      tip: tipAmount,
-      tax: totals.tax,
-      taxRate: taxRatePercent,
-      total: totals.total,
-    });
-    setLastOrderId(order.id);
-    clear();
-    toast.success("Payment successful");
-    navigate({ to: "/invoice", search: { payment: paymentIntentId } as never });
+  const onPaymentSuccess = async (paymentIntentId: string) => {
+    try {
+      if (isApiMode && pendingOrderId) {
+        const order = await api.confirmOrderPayment(pendingOrderId, paymentIntentId);
+        setLastOrderId(order.id);
+        clear();
+        toast.success("Payment successful");
+        navigate({ to: "/invoice", search: { payment: paymentIntentId } as never });
+        return;
+      }
+
+      const data = schema.parse(form);
+      const order = useShop.getState().addOrder({
+        items,
+        customer: data,
+        subtotal,
+        tip: tipAmount,
+        tax: totals.tax,
+        taxRate: taxRatePercent,
+        total: totals.total,
+      });
+      setLastOrderId(order.id);
+      clear();
+      toast.success("Payment successful");
+      navigate({ to: "/invoice", search: { payment: paymentIntentId } as never });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Could not confirm payment";
+      toast.error(message);
+    }
   };
 
   return (
@@ -155,6 +197,7 @@ function CheckoutPage() {
           if (step === "payment") {
             setStep("details");
             setClientSecret(null);
+            setPendingOrderId(null);
             setPaymentError(null);
           } else {
             setDrawerOpen(true);

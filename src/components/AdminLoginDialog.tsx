@@ -4,26 +4,56 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Lock } from "lucide-react";
+import { Loader2, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { useAdmin } from "@/lib/store";
+import { isApiMode, setAdminToken } from "@/lib/api/client";
+import * as api from "@/lib/api/backend";
+import { refreshAdminDataFromApi } from "@/lib/api/hydrate";
 
 export function AdminLoginDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const { isAdmin, setAdmin, login } = useAdmin();
   const navigate = useNavigate();
   const [u, setU] = useState("");
   const [p, setP] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const submit = (e: React.FormEvent) => {
+  const signOut = () => {
+    setAdminToken(null);
+    setAdmin(false);
+    toast.success("Signed out");
+  };
+
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (login(u, p)) {
-      toast.success("Welcome back, Admin");
-      onOpenChange(false);
-      navigate({ to: "/admin" });
-      setU("");
-      setP("");
-    } else {
-      toast.error("Invalid credentials");
+    setLoading(true);
+    try {
+      if (isApiMode) {
+        const result = await api.loginAdmin(u, p);
+        setAdminToken(result.token);
+        setAdmin(true);
+        await refreshAdminDataFromApi();
+        toast.success("Welcome back, Admin");
+        onOpenChange(false);
+        navigate({ to: "/admin" });
+        setU("");
+        setP("");
+        return;
+      }
+
+      if (login(u, p)) {
+        toast.success("Welcome back, Admin");
+        onOpenChange(false);
+        navigate({ to: "/admin" });
+        setU("");
+        setP("");
+      } else {
+        toast.error("Invalid credentials");
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Invalid credentials");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -42,7 +72,7 @@ export function AdminLoginDialog({ open, onOpenChange }: { open: boolean; onOpen
             <p className="text-sm text-muted-foreground text-center">You are signed in.</p>
             <div className="flex gap-2">
               <Button className="flex-1" onClick={() => { onOpenChange(false); navigate({ to: "/admin" }); }}>Open dashboard</Button>
-              <Button variant="outline" onClick={() => { setAdmin(false); toast.success("Signed out"); }}>Sign out</Button>
+              <Button variant="outline" onClick={signOut}>Sign out</Button>
             </div>
           </div>
         ) : (
@@ -55,7 +85,9 @@ export function AdminLoginDialog({ open, onOpenChange }: { open: boolean; onOpen
               <Label htmlFor="p">Password</Label>
               <Input id="p" type="password" value={p} onChange={e => setP(e.target.value)} />
             </div>
-            <Button type="submit" className="w-full">Sign in</Button>
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Signing in…</> : "Sign in"}
+            </Button>
           </form>
         )}
       </DialogContent>
