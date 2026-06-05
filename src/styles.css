@@ -93,8 +93,8 @@
   --sidebar-foreground: oklch(0.98 0.012 80);
   --sidebar-primary: oklch(0.98 0.012 80);
   --sidebar-primary-foreground: oklch(0.46 0.11 342);
-  --sidebar-accent: oklch(1 0 0 / 0.12);
-  --sidebar-accent-foreground: oklch(0.98 0.012 80);
+  --sidebar-accent: oklch(0.98 0.012 80 / 0.92);
+  --sidebar-accent-foreground: oklch(0.32 0.08 40);
   --sidebar-border: oklch(1 0 0 / 0.18);
   --sidebar-ring: oklch(0.9 0.12 58);
 
@@ -325,6 +325,10 @@
   .footer-link:hover {
     color: var(--footer-heading);
   }
+  .footer-link:hover .footer-icon-box {
+    color: var(--footer-heading);
+    background: oklch(0.32 0.08 40 / 0.18);
+  }
   .footer-icon-box {
     display: flex;
     height: 2.25rem;
@@ -335,6 +339,7 @@
     border-radius: 0.75rem;
     background: oklch(0.32 0.08 40 / 0.1);
     color: var(--footer-fg);
+    transition: color 0.2s ease, background 0.2s ease;
   }
   .overlay-pink-card {
     background: linear-gradient(

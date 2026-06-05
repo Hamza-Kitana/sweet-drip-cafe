@@ -326,7 +326,7 @@ export function Layout() {
                       target="_blank"
                       rel="noreferrer"
                       aria-label={label}
-                      className="flex h-10 w-10 items-center justify-center rounded-full border border-[oklch(0.32_0.08_40/0.2)] bg-[oklch(0.32_0.08_40/0.08)] text-[var(--footer-fg)] transition hover:border-[oklch(0.32_0.08_40/0.35)] hover:bg-[oklch(0.32_0.08_40/0.14)]"
+                      className="flex h-10 w-10 items-center justify-center rounded-full border border-[oklch(0.32_0.08_40/0.2)] bg-[oklch(0.32_0.08_40/0.08)] text-[var(--footer-fg)] transition hover:border-[oklch(0.32_0.08_40/0.4)] hover:bg-[oklch(0.32_0.08_40/0.18)] hover:text-[var(--footer-heading)]"
                     >
                       <Icon className="h-4 w-4" />
                     </a>

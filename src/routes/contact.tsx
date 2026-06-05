@@ -68,7 +68,7 @@ function Social({ href, Icon, label }: { href: string; Icon: React.ComponentType
       target="_blank"
       rel="noreferrer"
       aria-label={label}
-      className="inline-flex h-16 w-16 items-center justify-center rounded-2xl border bg-card shadow-soft transition hover:gradient-choco hover:text-primary-foreground hover:shadow-glow sm:h-[4.5rem] sm:w-[4.5rem] sm:rounded-3xl"
+      className="inline-flex h-16 w-16 items-center justify-center rounded-2xl border bg-card text-primary shadow-soft transition hover:border-[oklch(0.68_0.11_350)] hover:bg-[oklch(0.72_0.1_350)] hover:text-white hover:shadow-glow sm:h-[4.5rem] sm:w-[4.5rem] sm:rounded-3xl"
     >
       <Icon className="h-8 w-8 sm:h-9 sm:w-9" />
     </a>
