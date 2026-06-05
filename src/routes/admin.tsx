@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState, useEffect, useRef } from "react";
-import { useShop, useAdmin, fmt, initShopSync, groupCartItems, HERO_SLIDE_COUNT, FLOAT_IMAGE_COUNT, normalizeBackgroundSlides, normalizeFloatingImages, type HeroSettings, type Product, type Category, type Offer, type Order, type LargeOrderRequest } from "@/lib/store";
+import { useShop, useAdmin, fmt, initShopSync, groupCartItems, HERO_SLIDE_COUNT, FLOAT_IMAGE_COUNT, normalizeBackgroundSlides, normalizeFloatingImages, normalizeTaxRate, type HeroSettings, type Product, type Category, type Offer, type Order, type LargeOrderRequest } from "@/lib/store";
 import { AdminGuard } from "@/components/AdminGuard";
 import { ImageDropzone } from "@/components/ImageDropzone";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { LogOut, Plus, Pencil, Trash2, Image as ImageIcon, Package, Tag, Receipt, Home, Layers, Eye, EyeOff, Search, X, UtensilsCrossed, KeyRound, CalendarDays } from "lucide-react";
+import { LogOut, Plus, Pencil, Trash2, Image as ImageIcon, Package, Tag, Receipt, Home, Layers, Eye, EyeOff, Search, X, UtensilsCrossed, KeyRound, CalendarDays, Percent, Settings } from "lucide-react";
 import { isCategoryVisible } from "@/lib/catalog";
 import {
   ANALYTICS_RANGE_OPTIONS,
@@ -30,7 +30,7 @@ export const Route = createFileRoute("/admin")({
   component: () => <AdminGuard><Dashboard /></AdminGuard>,
 });
 
-type Tab = "overview" | "orders" | "catering" | "products" | "offers" | "site";
+type Tab = "overview" | "orders" | "catering" | "products" | "offers" | "site" | "settings";
 
 function Dashboard() {
   const { setAdmin } = useAdmin();
@@ -100,11 +100,12 @@ function Dashboard() {
     { id: "products", label: "Products", icon: Package },
     { id: "offers",   label: "Offers",   icon: Tag },
     { id: "site",     label: "Site",     icon: Layers },
+    { id: "settings", label: "Settings", icon: Settings },
   ];
   return (
     <div className="section-inner py-8">
-      <div className="grid lg:grid-cols-[240px_1fr] gap-6">
-        <aside className="lg:sticky lg:top-28 h-fit">
+      <div className="grid lg:grid-cols-[minmax(17rem,280px)_1fr] gap-6">
+        <aside className="lg:sticky lg:top-28 lg:max-h-[calc(100svh-8rem)] lg:overflow-y-auto">
           <div className="admin-sidebar rounded-3xl p-5 shadow-soft">
             <div className="mb-3 text-xs uppercase tracking-widest text-[var(--footer-muted)]">Admin</div>
             <nav className="space-y-1">
@@ -125,6 +126,7 @@ function Dashboard() {
                 </button>
               ))}
             </nav>
+
             <Button
               variant="outline"
               className="mt-4 w-full border-sidebar-border bg-transparent text-[var(--footer-muted)] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
@@ -142,8 +144,131 @@ function Dashboard() {
           {tab === "products"   && <ProductsPanel />}
           {tab === "offers"     && <OffersPanel />}
           {tab === "site"       && <SitePanel />}
+          {tab === "settings"   && <SettingsPanel />}
         </main>
       </div>
+    </div>
+  );
+}
+
+function SettingsPanel() {
+  const { taxRatePercent, setTaxRatePercent } = useShop();
+  const { username, updateCredentials } = useAdmin();
+  const [taxRate, setTaxRate] = useState(String(taxRatePercent));
+  const [account, setAccount] = useState({
+    username,
+    password: "",
+    confirm: "",
+    currentPassword: "",
+  });
+
+  useEffect(() => {
+    setAccount((a) => ({ ...a, username }));
+  }, [username]);
+
+  useEffect(() => {
+    setTaxRate(String(taxRatePercent));
+  }, [taxRatePercent]);
+
+  return (
+    <div className="max-w-3xl space-y-6">
+      <Card>
+        <div className="mb-4 flex items-center gap-2">
+          <Percent className="h-5 w-5 text-primary" />
+          <h2 className="font-display text-2xl text-primary">Sales tax</h2>
+        </div>
+        <p className="mb-4 text-sm text-muted-foreground">
+          Tax is calculated on subtotal + tip at checkout and shown in the order summary.
+        </p>
+        <Field label="Tax rate (%)">
+          <Input
+            type="number"
+            min={0}
+            max={100}
+            step={0.01}
+            value={taxRate}
+            onChange={(e) => setTaxRate(e.target.value)}
+            placeholder="10.25"
+            className="max-w-xs"
+          />
+        </Field>
+        <Button
+          className="mt-4 rounded-full"
+          onClick={() => {
+            const parsed = normalizeTaxRate(parseFloat(taxRate));
+            setTaxRatePercent(parsed);
+            setTaxRate(String(parsed));
+            toast.success(`Tax rate set to ${parsed}%`);
+          }}
+        >
+          Save tax rate
+        </Button>
+      </Card>
+
+      <Card>
+        <div className="mb-4 flex items-center gap-2">
+          <KeyRound className="h-5 w-5 text-primary" />
+          <h2 className="font-display text-2xl text-primary">Admin login</h2>
+        </div>
+        <p className="mb-4 text-sm text-muted-foreground">
+          Change dashboard username and password. Current password is required to save changes.
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Username">
+            <Input
+              value={account.username}
+              onChange={(e) => setAccount({ ...account, username: e.target.value })}
+              autoComplete="username"
+            />
+          </Field>
+          <Field label="Current password *">
+            <Input
+              type="password"
+              value={account.currentPassword}
+              onChange={(e) => setAccount({ ...account, currentPassword: e.target.value })}
+              autoComplete="current-password"
+            />
+          </Field>
+          <Field label="New password *">
+            <Input
+              type="password"
+              value={account.password}
+              onChange={(e) => setAccount({ ...account, password: e.target.value })}
+              autoComplete="new-password"
+            />
+          </Field>
+          <Field label="Confirm password *">
+            <Input
+              type="password"
+              value={account.confirm}
+              onChange={(e) => setAccount({ ...account, confirm: e.target.value })}
+              autoComplete="new-password"
+            />
+          </Field>
+        </div>
+        <Button
+          className="mt-4 rounded-full"
+          onClick={() => {
+            if (account.password !== account.confirm) {
+              toast.error("New passwords do not match");
+              return;
+            }
+            const result = updateCredentials({
+              username: account.username,
+              password: account.password,
+              currentPassword: account.currentPassword,
+            });
+            if (!result.ok) {
+              toast.error(result.error);
+              return;
+            }
+            toast.success("Admin login updated");
+            setAccount({ username: account.username, password: "", confirm: "", currentPassword: "" });
+          }}
+        >
+          Save admin login
+        </Button>
+      </Card>
     </div>
   );
 }
@@ -841,22 +966,11 @@ function OfferDialog({ open, onOpenChange, editing, onSave }: any) {
 
 function SitePanel() {
   const { hero, setHero } = useShop();
-  const { username, updateCredentials } = useAdmin();
   const [f, setF] = useState<HeroSettings>(() => ({
     ...hero,
     backgroundSlides: normalizeBackgroundSlides(hero.backgroundSlides),
     floatingImages: normalizeFloatingImages(hero.floatingImages),
   }));
-  const [account, setAccount] = useState({
-    username,
-    password: "",
-    confirm: "",
-    currentPassword: "",
-  });
-
-  useEffect(() => {
-    setAccount((a) => ({ ...a, username }));
-  }, [username]);
 
   const slides = normalizeBackgroundSlides(f.backgroundSlides);
   const floats = normalizeFloatingImages(f.floatingImages);
@@ -1036,71 +1150,6 @@ function SitePanel() {
           Save changes
         </Button>
       </div>
-    </Card>
-
-    <Card>
-      <div className="mb-4 flex items-center gap-2">
-        <KeyRound className="h-5 w-5 text-accent" />
-        <h2 className="font-display text-2xl text-primary">Admin login</h2>
-      </div>
-      <p className="mb-4 text-sm text-muted-foreground">
-        Change the username and password used to sign in to this dashboard.
-      </p>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Username">
-          <Input
-            value={account.username}
-            onChange={(e) => setAccount({ ...account, username: e.target.value })}
-            autoComplete="username"
-          />
-        </Field>
-        <Field label="Current password *">
-          <Input
-            type="password"
-            value={account.currentPassword}
-            onChange={(e) => setAccount({ ...account, currentPassword: e.target.value })}
-            autoComplete="current-password"
-          />
-        </Field>
-        <Field label="New password *">
-          <Input
-            type="password"
-            value={account.password}
-            onChange={(e) => setAccount({ ...account, password: e.target.value })}
-            autoComplete="new-password"
-          />
-        </Field>
-        <Field label="Confirm new password *">
-          <Input
-            type="password"
-            value={account.confirm}
-            onChange={(e) => setAccount({ ...account, confirm: e.target.value })}
-            autoComplete="new-password"
-          />
-        </Field>
-      </div>
-      <Button
-        className="mt-4 rounded-full gradient-choco text-primary-foreground"
-        onClick={() => {
-          if (account.password !== account.confirm) {
-            toast.error("New passwords do not match");
-            return;
-          }
-          const result = updateCredentials({
-            username: account.username,
-            password: account.password,
-            currentPassword: account.currentPassword,
-          });
-          if (!result.ok) {
-            toast.error(result.error);
-            return;
-          }
-          toast.success("Admin login updated");
-          setAccount({ username: account.username, password: "", confirm: "", currentPassword: "" });
-        }}
-      >
-        Save admin login
-      </Button>
     </Card>
     </div>
   );

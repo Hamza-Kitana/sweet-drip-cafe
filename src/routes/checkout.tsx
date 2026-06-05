@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { useCart, useShop, fmt } from "@/lib/store";
+import { useCart, useShop, fmt, calcOrderTotal } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,8 +23,6 @@ const schema = z.object({
   message: z.string().max(500).optional(),
 });
 
-const TIP_PRESETS = [0, 10, 15, 20];
-
 function parseTipInput(value: string) {
   if (value === "" || value === ".") return 0;
   const n = parseFloat(value);
@@ -38,32 +36,22 @@ export const Route = createFileRoute("/checkout")({
 
 function CheckoutPage() {
   const { items, tip, setTip, clear, setLastOrderId } = useCart();
+  const setDrawerOpen = useCart((s) => s.setDrawerOpen);
   const addOrder = useShop(s => s.addOrder);
+  const taxRatePercent = useShop(s => s.taxRatePercent);
   const navigate = useNavigate();
   const [step, setStep] = useState<"details" | "payment">("details");
-  const [tipPct, setTipPct] = useState<number | "custom">(tip > 0 ? "custom" : 0);
-  const [customTip, setCustomTip] = useState(tip > 0 ? String(tip) : "");
+  const [tipInput, setTipInput] = useState(tip > 0 ? String(tip) : "");
   const [form, setForm] = useState({ name: "", email: "", phone: "", date: "", time: "", message: "" });
   const [card, setCard] = useState({ number: "", exp: "", cvc: "" });
 
   const subtotal = items.reduce((s, i) => s + i.price * i.qty, 0);
-  const tipAmount =
-    tipPct === "custom"
-      ? parseTipInput(customTip)
-      : +(subtotal * (tipPct / 100)).toFixed(2);
-  const total = +(subtotal + tipAmount).toFixed(2);
+  const tipAmount = parseTipInput(tipInput);
+  const { tax: taxAmount, total } = calcOrderTotal(subtotal, tipAmount, taxRatePercent);
 
-  const applyCustomTip = (value: string) => {
-    setCustomTip(value);
-    setTipPct("custom");
+  const applyTip = (value: string) => {
+    setTipInput(value);
     setTip(parseTipInput(value));
-  };
-
-  const applyPresetTip = (pct: number) => {
-    setTipPct(pct);
-    const amount = +(subtotal * (pct / 100)).toFixed(2);
-    setCustomTip(pct === 0 ? "" : String(amount));
-    setTip(amount);
   };
 
   if (items.length === 0) {
@@ -74,6 +62,7 @@ function CheckoutPage() {
     e.preventDefault();
     const r = schema.safeParse(form);
     if (!r.success) { toast.error(r.error.issues[0].message); return; }
+    setTip(tipAmount);
     setStep("payment");
   };
 
@@ -82,7 +71,15 @@ function CheckoutPage() {
     if (card.number.replace(/\s/g, "").length < 12) { toast.error("Enter a valid card number"); return; }
     if (!card.exp || !card.cvc) { toast.error("Complete card details"); return; }
     const data = schema.parse(form);
-    const order = addOrder({ items, customer: data, subtotal, tip: tipAmount, total });
+    const order = addOrder({
+      items,
+      customer: data,
+      subtotal,
+      tip: tipAmount,
+      tax: taxAmount,
+      taxRate: taxRatePercent,
+      total,
+    });
     setLastOrderId(order.id);
     clear();
     toast.success("Payment successful");
@@ -91,7 +88,16 @@ function CheckoutPage() {
 
   return (
     <div className="section-inner py-8 sm:py-12">
-      <button onClick={() => step === "payment" ? setStep("details") : navigate({ to: "/cart" })} className="inline-flex items-center text-sm text-muted-foreground hover:text-primary mb-4 sm:mb-6">
+      <button
+        onClick={() => {
+          if (step === "payment") setStep("details");
+          else {
+            setDrawerOpen(true);
+            navigate({ to: "/menu" });
+          }
+        }}
+        className="inline-flex items-center text-sm text-muted-foreground hover:text-primary mb-4 sm:mb-6"
+      >
         <ChevronLeft className="w-4 h-4" /> Back
       </button>
       <h1 className="text-3xl sm:text-4xl font-display text-primary mb-6 sm:mb-8">{step === "details" ? "Your details" : "Payment"}</h1>
@@ -134,25 +140,6 @@ function CheckoutPage() {
                 <Field label="Expiry"><Input placeholder="MM/YY" maxLength={5} value={card.exp} onChange={e => setCard({...card, exp: e.target.value})} /></Field>
                 <Field label="CVC"><Input maxLength={4} value={card.cvc} onChange={e => setCard({...card, cvc: e.target.value.replace(/[^0-9]/g, "")})} /></Field>
               </div>
-              <div>
-                <Label className="mb-2 block">Add a tip for the staff</Label>
-                <div className="flex flex-wrap gap-2">
-                  {TIP_PRESETS.map(p => (
-                    <button type="button" key={p} onClick={() => applyPresetTip(p)}
-                      className={`px-4 py-2 rounded-full text-sm border-2 transition ${tipPct === p ? "border-primary bg-primary text-primary-foreground" : "border-border"}`}>
-                      {p === 0 ? "No tip" : `${p}%`}
-                    </button>
-                  ))}
-                  <button type="button" onClick={() => setTipPct("custom")}
-                    className={`px-4 py-2 rounded-full text-sm border-2 transition ${tipPct === "custom" ? "border-primary bg-primary text-primary-foreground" : "border-border"}`}>Custom</button>
-                  {tipPct === "custom" && (
-                    <div className="relative w-32">
-                      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
-                      <Input className="pl-7" placeholder="0.00" inputMode="decimal" value={customTip} onChange={e => applyCustomTip(e.target.value)} />
-                    </div>
-                  )}
-                </div>
-              </div>
               <Button type="submit" size="lg" className="w-full rounded-full gradient-choco text-primary-foreground">
                 <CreditCard className="w-4 h-4 mr-2" /> Pay {fmt(total)}
               </Button>
@@ -171,9 +158,29 @@ function CheckoutPage() {
               </li>
             ))}
           </ul>
+
+          <div className="mt-4 rounded-2xl border border-[oklch(0.72_0.09_350/0.22)] bg-muted/25 p-4">
+            <Label htmlFor="tip-amount" className="mb-2 block text-sm font-medium">Add a tip for the staff</Label>
+            <div className="relative">
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
+              <Input
+                id="tip-amount"
+                className="pl-7"
+                placeholder="0.00"
+                inputMode="decimal"
+                value={tipInput}
+                onChange={e => applyTip(e.target.value)}
+              />
+            </div>
+          </div>
+
           <div className="border-t mt-4 pt-4 space-y-1 text-sm">
             <div className="flex justify-between"><span>Subtotal</span><span>{fmt(subtotal)}</span></div>
             <div className="flex justify-between"><span>Tip</span><span>{fmt(tipAmount)}</span></div>
+            <div className="flex justify-between">
+              <span>Tax ({taxRatePercent}%)</span>
+              <span>{fmt(taxAmount)}</span>
+            </div>
             <div className="flex justify-between text-lg font-display pt-2 border-t mt-2"><span>Total</span><span className="text-primary">{fmt(total)}</span></div>
           </div>
         </aside>

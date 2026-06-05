@@ -6,6 +6,7 @@ import { CAFE_ADDRESS, CAFE_MAPS_URL, CAFE_HOURS_FOOTER } from "@/lib/location";
 import logo from "@/assets/Sweet_Drip_Logo..png";
 import { useCart, useAdmin } from "@/lib/store";
 import { AdminLoginDialog } from "./AdminLoginDialog";
+import { CartDrawer } from "./CartDrawer";
 import { PinkBackgroundAccents } from "./PinkBackgroundAccents";
 
 const NAV = [
@@ -76,6 +77,7 @@ function PageLoader() {
 
 export function Layout() {
   const items = useCart(s => s.items);
+  const setDrawerOpen = useCart(s => s.setDrawerOpen);
   const { isAdmin } = useAdmin();
   const headerRef = useRef<HTMLElement>(null);
   const [open, setOpen] = useState(false);
@@ -164,14 +166,19 @@ export function Layout() {
               ))}
             </nav>
             <div className="flex items-center gap-2">
-              <Link to="/cart" className="relative p-2.5 rounded-full hover:bg-accent/40 transition">
+              <button
+                type="button"
+                onClick={() => setDrawerOpen(true)}
+                className="relative rounded-full p-2.5 transition hover:bg-accent/40"
+                aria-label="Open cart"
+              >
                 <ShoppingBag className="w-5 h-5" />
                 {count > 0 && (
                   <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">
                     {count}
                   </span>
                 )}
-              </Link>
+              </button>
               <button onClick={() => setOpen(true)} className="md:hidden p-2.5 rounded-full hover:bg-accent/40">
                 <MenuIcon className="w-5 h-5" />
               </button>
@@ -331,12 +338,14 @@ export function Layout() {
         </div>
 
         <div className="site-footer-bar">
-          <div className="section-inner flex flex-col items-center justify-between gap-3 py-5 text-center text-xs text-[var(--footer-muted)] sm:flex-row sm:text-left">
-            <span>© {new Date().getFullYear()} Sweet Drip Dessert Cafe. All rights reserved.</span>
+          <div className="section-inner relative flex flex-col items-center gap-3 py-5 sm:min-h-[3.25rem] sm:justify-center">
+            <span className="w-full text-center text-xs text-white/95">
+              © {new Date().getFullYear()} Sweet Drip Dessert Cafe. All rights reserved.
+            </span>
             <button
               type="button"
               onClick={() => setAdminOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-full border border-[oklch(0.32_0.08_40/0.2)] px-3 py-1.5 text-[var(--footer-muted)] transition hover:border-[oklch(0.32_0.08_40/0.35)] hover:text-[var(--footer-fg)]"
+              className="inline-flex items-center gap-1.5 rounded-full border border-[oklch(0.32_0.08_40/0.2)] px-3 py-1.5 text-xs text-[var(--footer-muted)] transition hover:border-[oklch(0.32_0.08_40/0.35)] hover:text-[var(--footer-fg)] sm:absolute sm:right-0 sm:top-1/2 sm:-translate-y-1/2"
             >
               <Lock className="h-3 w-3" /> {isAdmin ? "Admin" : "Staff"}
             </button>
@@ -345,6 +354,7 @@ export function Layout() {
       </footer>
 
       <AdminLoginDialog open={adminOpen} onOpenChange={setAdminOpen} />
+      <CartDrawer />
     </div>
   );
 }

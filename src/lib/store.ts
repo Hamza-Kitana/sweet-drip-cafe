@@ -54,6 +54,9 @@ export type Order = {
   };
   subtotal: number;
   tip: number;
+  tax: number;
+  /** Tax rate % at time of order */
+  taxRate?: number;
   total: number;
   status: "new" | "preparing" | "ready" | "done" | "cancelled";
 };
@@ -213,6 +216,8 @@ type ShopState = {
   orders: Order[];
   largeOrders: LargeOrderRequest[];
   hero: HeroSettings;
+  /** Sales tax % applied to subtotal + tip at checkout */
+  taxRatePercent: number;
   /** Show offers tab, homepage block, and menu filter */
   offersSectionVisible: boolean;
 
@@ -235,8 +240,27 @@ type ShopState = {
   updateLargeOrderStatus: (id: string, s: LargeOrderRequest["status"]) => void;
 
   setHero: (h: Partial<HeroSettings>) => void;
+  setTaxRatePercent: (rate: number) => void;
   setOffersSectionVisible: (visible: boolean) => void;
 };
+
+export function normalizeTaxRate(rate?: number): number {
+  const n = Number(rate);
+  if (Number.isNaN(n) || n < 0) return 0;
+  if (n > 100) return 100;
+  return +n.toFixed(2);
+}
+
+export function calcTaxAmount(subtotal: number, tip: number, taxRatePercent: number): number {
+  const base = subtotal + tip;
+  return +(base * (normalizeTaxRate(taxRatePercent) / 100)).toFixed(2);
+}
+
+export function calcOrderTotal(subtotal: number, tip: number, taxRatePercent: number) {
+  const tax = calcTaxAmount(subtotal, tip, taxRatePercent);
+  const total = +(subtotal + tip + tax).toFixed(2);
+  return { tax, total };
+}
 
 const id = () => Math.random().toString(36).slice(2, 10);
 
@@ -313,6 +337,7 @@ export const useShop = create<ShopState>()(
       orders: [],
       largeOrders: [],
       hero: seedHero,
+      taxRatePercent: 10.25,
       offersSectionVisible: true,
 
       addCategory: (c) =>
@@ -374,6 +399,7 @@ export const useShop = create<ShopState>()(
           },
         });
       },
+      setTaxRatePercent: (rate) => set({ taxRatePercent: normalizeTaxRate(rate) }),
       setOffersSectionVisible: (visible) => set({ offersSectionVisible: visible }),
     }),
     {
@@ -393,6 +419,13 @@ export const useShop = create<ShopState>()(
           ),
         };
         state.largeOrders = (persisted as Partial<ShopState>)?.largeOrders ?? current.largeOrders ?? [];
+        state.taxRatePercent = normalizeTaxRate(
+          (persisted as Partial<ShopState>)?.taxRatePercent ?? current.taxRatePercent,
+        );
+        state.orders = (state.orders ?? []).map((o) => ({
+          ...o,
+          tax: o.tax ?? Math.max(0, +(o.total - o.subtotal - o.tip).toFixed(2)),
+        }));
         return state;
       },
     },
@@ -451,12 +484,14 @@ type CartState = {
   items: CartItem[];
   tip: number;
   lastOrderId: string | null;
+  drawerOpen: boolean;
   add: (i: Omit<CartItem, "uid">) => void;
   remove: (uid: string) => void;
   setQty: (uid: string, qty: number) => void;
   setTip: (tip: number) => void;
   clear: () => void;
   setLastOrderId: (id: string | null) => void;
+  setDrawerOpen: (open: boolean) => void;
 };
 export const useCart = create<CartState>()(
   persist(
@@ -464,6 +499,7 @@ export const useCart = create<CartState>()(
       items: [],
       tip: 0,
       lastOrderId: null,
+      drawerOpen: false,
       add: (i) => {
         const items = get().items;
         const incoming = { ...i, qty: i.qty || 1 };
@@ -473,18 +509,27 @@ export const useCart = create<CartState>()(
             items: items.map((x) =>
               x.uid === match.uid ? { ...x, qty: x.qty + incoming.qty } : x,
             ),
+            drawerOpen: true,
           });
           return;
         }
-        set({ items: [...items, { ...incoming, uid: id() }] });
+        set({ items: [...items, { ...incoming, uid: id() }], drawerOpen: true });
       },
       remove: (uid) => set({ items: get().items.filter(x => x.uid !== uid) }),
       setQty: (uid, qty) => set({ items: get().items.map(x => x.uid === uid ? { ...x, qty: Math.max(1, qty) } : x) }),
       setTip: (tip) => set({ tip: Math.max(0, Math.round((Number(tip) || 0) * 100) / 100) }),
       clear: () => set({ items: [], tip: 0 }),
       setLastOrderId: (id) => set({ lastOrderId: id }),
+      setDrawerOpen: (open) => set({ drawerOpen: open }),
     }),
-    { name: "sweetdrip-cart" }
+    {
+      name: "sweetdrip-cart",
+      partialize: (state) => ({
+        items: state.items,
+        tip: state.tip,
+        lastOrderId: state.lastOrderId,
+      }),
+    },
   )
 );
 
