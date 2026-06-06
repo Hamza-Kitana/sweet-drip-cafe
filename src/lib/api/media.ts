@@ -1,4 +1,5 @@
-import { apiFetch, API_URL } from "./client";
+import { apiFetch, API_URL, ApiError } from "./client";
+import { fileToDataUrl } from "@/lib/compressImage";
 
 export function isStoredMediaUrl(value: string | undefined | null) {
   if (!value) return false;
@@ -27,6 +28,20 @@ export async function uploadSiteImageFile(file: File) {
     method: "POST",
     body: form,
   });
+}
+
+/** Multipart first; JSON base64 fallback when nginx blocks the request body. */
+export async function uploadPreparedImage(file: File) {
+  try {
+    return await uploadSiteImageFile(file);
+  } catch (err) {
+    const fallback =
+      err instanceof ApiError &&
+      (err.status === 0 || err.status === 413 || err.message.toLowerCase().includes("nginx"));
+    if (!fallback) throw err;
+    const dataUrl = await fileToDataUrl(file);
+    return uploadSiteImage(dataUrl, file.name);
+  }
 }
 
 export async function deleteSiteImage(id: string) {

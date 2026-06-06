@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { isApiMode } from "@/lib/api/client";
 import { prepareImageForUpload } from "@/lib/compressImage";
-import { removeStoredMedia, uploadSiteImageFile } from "@/lib/api/media";
+import { removeStoredMedia, uploadPreparedImage } from "@/lib/api/media";
 
 const MAX_BYTES = 3 * 1024 * 1024;
 
@@ -52,7 +52,7 @@ export function ImageDropzone({
       if (isApiMode) {
         const prepared = await prepareImageForUpload(file);
         if (value) await removeStoredMedia(value);
-        const uploaded = await uploadSiteImageFile(prepared);
+        const uploaded = await uploadPreparedImage(prepared);
         onChange(uploaded.url);
       } else {
         onChange(await readImageAsDataUrl(file));
@@ -155,7 +155,7 @@ export function ImageUploadButton({
     try {
       if (isApiMode) {
         const prepared = await prepareImageForUpload(file);
-        const uploaded = await uploadSiteImageFile(prepared);
+        const uploaded = await uploadPreparedImage(prepared);
         onUpload(uploaded.url);
       } else {
         onUpload(await readImageAsDataUrl(file));
