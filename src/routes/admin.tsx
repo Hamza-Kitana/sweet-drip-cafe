@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { LogOut, Plus, Pencil, Trash2, Package, Tag, Receipt, Home, Layers, Eye, EyeOff, Search, X, UtensilsCrossed, KeyRound, CalendarDays, Percent, Settings, Phone, Mail, Users, MessageSquare, Clock, Loader2 } from "lucide-react";
+import { LogOut, Plus, Pencil, Trash2, Package, Tag, Receipt, Home, Layers, Eye, EyeOff, Search, X, UtensilsCrossed, KeyRound, CalendarDays, Percent, Settings, Phone, Mail, Users, MessageSquare, Clock, Loader2, User } from "lucide-react";
 import { isCategoryVisible } from "@/lib/catalog";
 import { formatUsPhoneFull } from "@/lib/phone";
 import {
@@ -246,25 +246,15 @@ function SettingsPanel() {
   const taxTimer = useRef<number>();
   const taxSaveGen = useRef(0);
   const taxLoaded = useRef(false);
-  const [account, setAccount] = useState({
-    username,
-    password: "",
-    confirm: "",
-    currentPassword: "",
-  });
 
   useEffect(() => {
     if (!isApiMode) {
       taxLoaded.current = true;
       return;
     }
-    void loadAdminProfileFromApi()
-      .then(() => {
-        setAccount((a) => ({ ...a, username: useAdmin.getState().username }));
-      })
-      .catch(() => {
-        /* keep cached username */
-      });
+    void loadAdminProfileFromApi().catch(() => {
+      /* keep cached username */
+    });
     void loadTaxRateFromApi()
       .then(() => {
         setTaxRate(String(useShop.getState().taxRatePercent));
@@ -302,10 +292,6 @@ function SettingsPanel() {
         });
     }, 700);
   }, [taxRate, taxRatePercent]);
-
-  useEffect(() => {
-    setAccount((a) => ({ ...a, username }));
-  }, [username]);
 
   useEffect(() => {
     if (taxSaving) return;
@@ -347,100 +333,209 @@ function SettingsPanel() {
         </Field>
       </Card>
 
-      <Card>
-        <div className="mb-4 flex items-center gap-2">
-          <KeyRound className="h-5 w-5 text-primary" />
-          <h2 className="font-display text-2xl text-primary">Admin login</h2>
-        </div>
-        <p className="mb-4 text-sm text-muted-foreground">
-          Change your dashboard username and/or password. Current password is always required. Leave new password blank to keep the same password.
-        </p>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Username">
-            <Input
-              value={account.username}
-              onChange={(e) => setAccount({ ...account, username: e.target.value })}
-              autoComplete="username"
-            />
-          </Field>
-          <Field label="Current password *">
-            <Input
-              type="password"
-              value={account.currentPassword}
-              onChange={(e) => setAccount({ ...account, currentPassword: e.target.value })}
-              autoComplete="current-password"
-            />
-          </Field>
-          <Field label="New password (optional)">
-            <Input
-              type="password"
-              value={account.password}
-              onChange={(e) => setAccount({ ...account, password: e.target.value })}
-              autoComplete="new-password"
-              placeholder="Leave blank to keep current"
-            />
-          </Field>
-          <Field label="Confirm new password">
-            <Input
-              type="password"
-              value={account.confirm}
-              onChange={(e) => setAccount({ ...account, confirm: e.target.value })}
-              autoComplete="new-password"
-              placeholder="Only if changing password"
-            />
-          </Field>
-        </div>
-        <Button
-          className="mt-4 rounded-full"
-          onClick={async () => {
-            const nextUsername = account.username.trim();
-            if (!nextUsername) {
-              toast.error("Username is required");
-              return;
-            }
-            if (!account.currentPassword.trim()) {
-              toast.error("Enter your current password");
-              return;
-            }
-            if (account.password || account.confirm) {
-              if (account.password.length < 6) {
-                toast.error("New password must be at least 6 characters");
-                return;
-              }
-              if (account.password !== account.confirm) {
-                toast.error("New passwords do not match");
-                return;
-              }
-            }
-            try {
-              if (isApiMode) {
-                await updateAdminCredentialsToApi({
-                  username: nextUsername,
-                  password: account.password,
-                  currentPassword: account.currentPassword,
-                });
-              } else {
-                const result = updateCredentials({
-                  username: nextUsername,
-                  password: account.password,
-                  currentPassword: account.currentPassword,
-                });
-                if (!result.ok) {
-                  toast.error(result.error);
-                  return;
-                }
-              }
-              toast.success("Admin login updated");
-              setAccount({ username: nextUsername, password: "", confirm: "", currentPassword: "" });
-            } catch (err) {
-              toast.error(err instanceof Error ? err.message : "Could not update credentials");
-            }
-          }}
-        >
-          Save admin login
-        </Button>
-      </Card>
+      <AdminLoginSettings username={username} updateCredentials={updateCredentials} />
     </div>
+  );
+}
+
+function AdminLoginSettings({
+  username,
+  updateCredentials,
+}: {
+  username: string;
+  updateCredentials: ReturnType<typeof useAdmin>["updateCredentials"];
+}) {
+  const [usernameDraft, setUsernameDraft] = useState(username);
+  const [usernamePassword, setUsernamePassword] = useState("");
+  const [passwordCurrent, setPasswordCurrent] = useState("");
+  const [passwordNew, setPasswordNew] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
+  const [usernameSaving, setUsernameSaving] = useState(false);
+  const [passwordSaving, setPasswordSaving] = useState(false);
+
+  useEffect(() => {
+    setUsernameDraft(username);
+  }, [username]);
+
+  const saveCredentials = async (input: {
+    username: string;
+    password: string;
+    currentPassword: string;
+  }) => {
+    if (isApiMode) {
+      await updateAdminCredentialsToApi(input);
+      return;
+    }
+    const result = updateCredentials(input);
+    if (!result.ok) throw new Error(result.error);
+  };
+
+  const updateUsername = async () => {
+    const nextUsername = usernameDraft.trim();
+    if (!nextUsername) {
+      toast.error("Username is required");
+      return;
+    }
+    if (nextUsername === username) {
+      toast.error("Choose a different username");
+      return;
+    }
+    if (!usernamePassword.trim()) {
+      toast.error("Enter your current password to change username");
+      return;
+    }
+    setUsernameSaving(true);
+    try {
+      await saveCredentials({
+        username: nextUsername,
+        password: "",
+        currentPassword: usernamePassword,
+      });
+      toast.success("Username updated");
+      setUsernamePassword("");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not update username");
+    } finally {
+      setUsernameSaving(false);
+    }
+  };
+
+  const updatePassword = async () => {
+    if (!passwordCurrent.trim()) {
+      toast.error("Enter your current password");
+      return;
+    }
+    if (passwordNew.length < 6) {
+      toast.error("New password must be at least 6 characters");
+      return;
+    }
+    if (passwordNew !== passwordConfirm) {
+      toast.error("New passwords do not match");
+      return;
+    }
+    setPasswordSaving(true);
+    try {
+      await saveCredentials({
+        username,
+        password: passwordNew,
+        currentPassword: passwordCurrent,
+      });
+      toast.success("Password updated");
+      setPasswordCurrent("");
+      setPasswordNew("");
+      setPasswordConfirm("");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not update password");
+    } finally {
+      setPasswordSaving(false);
+    }
+  };
+
+  return (
+    <Card>
+      <div className="mb-2 flex items-center gap-2">
+        <KeyRound className="h-5 w-5 text-primary" />
+        <h2 className="font-display text-2xl text-primary">Admin login</h2>
+      </div>
+      <p className="mb-6 text-sm text-muted-foreground">
+        Signed in as <span className="font-semibold text-primary">{username}</span>. Update username and password separately — each step saves to the database.
+      </p>
+
+      <div className="space-y-4">
+        <section className="rounded-2xl border bg-muted/20 p-4 sm:p-5">
+          <div className="mb-4 flex items-center gap-2">
+            <User className="h-4 w-4 text-primary" />
+            <h3 className="font-semibold text-primary">Step 1 · Change username</h3>
+          </div>
+          <div className="space-y-4">
+            <Field label="Current username">
+              <Input value={username} disabled className="bg-muted/40" />
+            </Field>
+            <Field label="New username">
+              <Input
+                value={usernameDraft}
+                onChange={(e) => setUsernameDraft(e.target.value)}
+                autoComplete="username"
+                placeholder="Enter new username"
+              />
+            </Field>
+            <Field label="Current password (required)">
+              <Input
+                type="password"
+                value={usernamePassword}
+                onChange={(e) => setUsernamePassword(e.target.value)}
+                autoComplete="current-password"
+                placeholder="Confirm with your current password"
+              />
+            </Field>
+            <Button
+              className="rounded-full gradient-choco text-primary-foreground"
+              disabled={usernameSaving}
+              onClick={() => void updateUsername()}
+            >
+              {usernameSaving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving username…
+                </>
+              ) : (
+                "Save username"
+              )}
+            </Button>
+          </div>
+        </section>
+
+        <section className="rounded-2xl border bg-muted/20 p-4 sm:p-5">
+          <div className="mb-4 flex items-center gap-2">
+            <KeyRound className="h-4 w-4 text-primary" />
+            <h3 className="font-semibold text-primary">Step 2 · Change password</h3>
+          </div>
+          <div className="space-y-4">
+            <Field label="Current password">
+              <Input
+                type="password"
+                value={passwordCurrent}
+                onChange={(e) => setPasswordCurrent(e.target.value)}
+                autoComplete="current-password"
+              />
+            </Field>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="New password">
+                <Input
+                  type="password"
+                  value={passwordNew}
+                  onChange={(e) => setPasswordNew(e.target.value)}
+                  autoComplete="new-password"
+                  placeholder="At least 6 characters"
+                />
+              </Field>
+              <Field label="Confirm new password">
+                <Input
+                  type="password"
+                  value={passwordConfirm}
+                  onChange={(e) => setPasswordConfirm(e.target.value)}
+                  autoComplete="new-password"
+                />
+              </Field>
+            </div>
+            <Button
+              className="rounded-full gradient-choco text-primary-foreground"
+              disabled={passwordSaving}
+              onClick={() => void updatePassword()}
+            >
+              {passwordSaving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving password…
+                </>
+              ) : (
+                "Save password"
+              )}
+            </Button>
+          </div>
+        </section>
+      </div>
+    </Card>
   );
 }
 
