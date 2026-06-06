@@ -79,11 +79,24 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("Frontend", policy =>
     {
-        var origins = builder.Configuration.GetSection("Cors:Origins").Get<string[]>() ??
-                      ["http://localhost:3000", "https://sweetdrip.cafe", "https://www.sweetdrip.cafe"];
-        policy.WithOrigins(origins).AllowAnyHeader().AllowAnyMethod();
+        var configuredOrigins = builder.Configuration.GetSection("Cors:Origins").Get<string[]>() ??
+                                ["http://localhost:3000", "https://sweetdrip.cafe", "https://www.sweetdrip.cafe"];
+        var allowedOrigins = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var origin in configuredOrigins)
+        {
+            if (string.IsNullOrWhiteSpace(origin)) continue;
+            allowedOrigins.Add(NormalizeCorsOrigin(origin));
+        }
+
+        policy.SetIsOriginAllowed(origin =>
+                !string.IsNullOrWhiteSpace(origin) && allowedOrigins.Contains(NormalizeCorsOrigin(origin)))
+            .AllowAnyHeader()
+            .AllowAnyMethod();
     });
 });
+
+static string NormalizeCorsOrigin(string origin) =>
+    origin.Trim().TrimEnd('/');
 
 var app = builder.Build();
 

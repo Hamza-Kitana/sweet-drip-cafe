@@ -3,7 +3,6 @@
 set -euo pipefail
 
 CONF="/etc/nginx/sites-available/api.sweetdrip.cafe"
-SNIPPET=$'    client_max_body_size 50m;\n    proxy_read_timeout 120s;\n    proxy_send_timeout 120s;'
 
 if [ ! -f "$CONF" ]; then
   echo "Config not found: $CONF"
@@ -14,7 +13,11 @@ fi
 if grep -q "client_max_body_size" "$CONF"; then
   echo "client_max_body_size already set in $CONF"
 else
-  sed -i "/server {/a\\$SNIPPET" "$CONF"
+  sed -i '/server {/a\
+    client_max_body_size 50m;\
+    proxy_read_timeout 120s;\
+    proxy_send_timeout 120s;
+' "$CONF"
   echo "Added upload limits to $CONF"
 fi
 
