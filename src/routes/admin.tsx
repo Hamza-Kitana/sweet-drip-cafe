@@ -1396,9 +1396,6 @@ function categoryImage(categories: Category[], categoryId: string) {
   return categories.find((c) => c.id === categoryId)?.image ?? "";
 }
 
-function productHasCustomization(product?: Product | null) {
-  return product ? productHasOptions(product) : false;
-}
 
 function ProductDialog({ open, onOpenChange, editing, categories, defaultCategoryId, onSave }: {
   open: boolean;
@@ -1408,43 +1405,55 @@ function ProductDialog({ open, onOpenChange, editing, categories, defaultCategor
   defaultCategoryId?: string;
   onSave: (data: Omit<Product, "id">) => void;
 }) {
-  const initialCategoryId = editing?.categoryId ?? defaultCategoryId ?? categories[0]?.id ?? "";
-  const [notesEnabled, setNotesEnabled] = useState(() => productHasCustomization(editing));
+  const [notesEnabled, setNotesEnabled] = useState(false);
 
-  const [f, setF] = useState<Omit<Product, "id">>(() => {
-    const optionGroups = normalizeOptionGroups(editing?.optionGroups, editing?.notes, editing?.noteChoices);
-    return {
-      name: editing?.name ?? "",
-      description: editing?.description ?? "",
-      price: editing?.price ?? 0,
-      image: editing?.image?.trim() || PRODUCT_IMAGE_SECTION,
-      categoryId: initialCategoryId,
-      notes: optionGroups[0]?.label ?? editing?.notes ?? "Sweetness",
-      optionGroups,
-      noteChoices: optionGroups.flatMap((g) => g.choices),
-    };
+  const [f, setF] = useState<Omit<Product, "id">>({
+    name: "",
+    description: "",
+    price: 0,
+    image: PRODUCT_IMAGE_SECTION,
+    categoryId: "",
+    notes: "",
+    optionGroups: [],
+    noteChoices: [],
   });
-  const [optionGroups, setOptionGroups] = useState<ProductOptionGroup[]>(() =>
-    normalizeOptionGroups(editing?.optionGroups, editing?.notes, editing?.noteChoices),
-  );
+  const [optionGroups, setOptionGroups] = useState<ProductOptionGroup[]>([]);
 
-  const resetForm = () => {
-    const categoryId = editing?.categoryId ?? defaultCategoryId ?? categories[0]?.id ?? "";
-    const enabled = productHasCustomization(editing);
-    const groups = normalizeOptionGroups(editing?.optionGroups, editing?.notes, editing?.noteChoices);
-    setNotesEnabled(enabled);
-    setF({
-      name: editing?.name ?? "",
-      description: editing?.description ?? "",
-      price: editing?.price ?? 0,
-      image: editing?.image?.trim() || PRODUCT_IMAGE_SECTION,
-      categoryId,
-      notes: groups[0]?.label ?? editing?.notes ?? "Sweetness",
-      optionGroups: groups,
-      noteChoices: groups.flatMap((g) => g.choices),
-    });
-    setOptionGroups(groups);
+  const buildFormState = (product: Product | null, categoryId: string) => {
+    const groups = normalizeOptionGroups(product?.optionGroups, product?.notes, product?.noteChoices);
+    return {
+      enabled: product ? productHasOptions(product) : false,
+      groups,
+      form: {
+        name: product?.name ?? "",
+        description: product?.description ?? "",
+        price: product?.price ?? 0,
+        image: product?.image?.trim() || PRODUCT_IMAGE_SECTION,
+        categoryId,
+        notes: groups[0]?.label ?? product?.notes ?? "Sweetness",
+        optionGroups: groups,
+        noteChoices: groups.flatMap((g) => g.choices),
+      } satisfies Omit<Product, "id">,
+    };
   };
+
+  const lastLoadedKey = useRef("");
+
+  useEffect(() => {
+    if (!open) {
+      lastLoadedKey.current = "";
+      return;
+    }
+    const categoryId = editing?.categoryId ?? defaultCategoryId ?? categories[0]?.id ?? "";
+    const loadKey = `${editing?.id ?? "new"}:${categoryId}`;
+    if (lastLoadedKey.current === loadKey) return;
+    lastLoadedKey.current = loadKey;
+
+    const next = buildFormState(editing, categoryId);
+    setNotesEnabled(next.enabled);
+    setF(next.form);
+    setOptionGroups(next.groups);
+  }, [open, editing, defaultCategoryId, categories]);
 
   const handleCategoryChange = (nextCategoryId: string) => {
     const prevCategoryImage = categoryImage(categories, f.categoryId);
@@ -1459,10 +1468,7 @@ function ProductDialog({ open, onOpenChange, editing, categories, defaultCategor
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => {
-      onOpenChange(v);
-      if (v) resetForm();
-    }}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-auto">
         <DialogHeader><DialogTitle>{editing ? "Edit" : "New"} product</DialogTitle></DialogHeader>
         <div className="grid sm:grid-cols-2 gap-4">
