@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { isApiMode } from "@/lib/api/client";
 import heroDessert from "@/assets/hero-dessert.jpg";
 import aboutCafe from "@/assets/about-cafe.jpg";
 import float1 from "@/assets/float-1.png";
@@ -326,6 +327,9 @@ export function initShopSync() {
     const channel = new BroadcastChannel(SHOP_SYNC_CHANNEL);
     channel.onmessage = (event) => {
       if (event.data?.type === "new-order" || event.data?.type === "new-large-order") rehydrate();
+      if (event.data?.type === "catalog-updated") {
+        void import("@/lib/api/hydrate").then(({ hydrateShopFromApi }) => hydrateShopFromApi());
+      }
     };
   } catch {
     /* BroadcastChannel unavailable */
@@ -410,9 +414,41 @@ export const useShop = create<ShopState>()(
     }),
     {
       name: SHOP_STORAGE_KEY,
+      partialize: (state) => {
+        if (isApiMode) {
+          return {
+            orders: state.orders,
+            largeOrders: state.largeOrders,
+          };
+        }
+        return {
+          categories: state.categories,
+          products: state.products,
+          offers: state.offers,
+          hero: state.hero,
+          orders: state.orders,
+          largeOrders: state.largeOrders,
+          taxRatePercent: state.taxRatePercent,
+          offersSectionVisible: state.offersSectionVisible,
+        };
+      },
       merge: (persisted, current) => {
-        const state = { ...current, ...(persisted as Partial<ShopState>) };
-        const persistedHero = (persisted as Partial<ShopState>)?.hero;
+        const saved = persisted as Partial<ShopState>;
+        const orders = (saved.orders ?? current.orders ?? []).map((o) => ({
+          ...o,
+          tax: o.tax ?? Math.max(0, +(o.total - o.subtotal - o.tip).toFixed(2)),
+        }));
+
+        if (isApiMode) {
+          return {
+            ...current,
+            orders,
+            largeOrders: saved.largeOrders ?? current.largeOrders ?? [],
+          };
+        }
+
+        const state = { ...current, ...saved };
+        const persistedHero = saved.hero;
         state.hero = {
           ...seedHero,
           ...current.hero,
@@ -424,14 +460,11 @@ export const useShop = create<ShopState>()(
             persistedHero?.floatingImages ?? current.hero.floatingImages,
           ),
         };
-        state.largeOrders = (persisted as Partial<ShopState>)?.largeOrders ?? current.largeOrders ?? [];
+        state.largeOrders = saved.largeOrders ?? current.largeOrders ?? [];
         state.taxRatePercent = normalizeTaxRate(
-          (persisted as Partial<ShopState>)?.taxRatePercent ?? current.taxRatePercent,
+          saved.taxRatePercent ?? current.taxRatePercent,
         );
-        state.orders = (state.orders ?? []).map((o) => ({
-          ...o,
-          tax: o.tax ?? Math.max(0, +(o.total - o.subtotal - o.tip).toFixed(2)),
-        }));
+        state.orders = orders;
         return state;
       },
     },

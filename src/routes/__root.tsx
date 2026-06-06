@@ -126,7 +126,7 @@ function RootComponent() {
 
   useEffect(() => {
     initShopSync();
-    if (isApiMode) void hydrateShopFromApi();
+    if (isApiMode) void hydrateShopFromApi({ broadcast: false });
   }, []);
 
   return (

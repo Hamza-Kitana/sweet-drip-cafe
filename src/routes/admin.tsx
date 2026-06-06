@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { LogOut, Plus, Pencil, Trash2, Package, Tag, Receipt, Home, Layers, Eye, EyeOff, Search, X, UtensilsCrossed, KeyRound, CalendarDays, Percent, Settings, Phone, Mail, Users, MessageSquare, Clock } from "lucide-react";
+import { LogOut, Plus, Pencil, Trash2, Package, Tag, Receipt, Home, Layers, Eye, EyeOff, Search, X, UtensilsCrossed, KeyRound, CalendarDays, Percent, Settings, Phone, Mail, Users, MessageSquare, Clock, Loader2 } from "lucide-react";
 import { isCategoryVisible } from "@/lib/catalog";
 import { formatUsPhoneFull } from "@/lib/phone";
 import {
@@ -111,7 +111,7 @@ function Dashboard() {
   useEffect(() => {
     initShopSync();
     if (isApiMode) {
-      void hydrateShopFromApi();
+      void hydrateShopFromApi({ broadcast: false });
       if (isAdmin) void refreshAdminDataFromApi();
     }
   }, [isAdmin]);
@@ -1333,66 +1333,126 @@ function SitePanel() {
     backgroundSlides: normalizeBackgroundSlides(hero.backgroundSlides),
     floatingImages: normalizeFloatingImages(hero.floatingImages),
   }));
+  const [saving, setSaving] = useState(false);
+  const fRef = useRef(f);
+  const saveTimer = useRef<number>();
+  const saveGen = useRef(0);
 
+  fRef.current = f;
   const slides = normalizeBackgroundSlides(f.backgroundSlides);
   const floats = normalizeFloatingImages(f.floatingImages);
 
+  useEffect(() => () => window.clearTimeout(saveTimer.current), []);
+
+  const heroPayload = (draft: HeroSettings): HeroSettings => ({
+    tagline: draft.tagline,
+    image: draft.image,
+    floatingImages: normalizeFloatingImages(draft.floatingImages),
+    aboutImage: draft.aboutImage,
+    backgroundSlides: normalizeBackgroundSlides(draft.backgroundSlides),
+    heroBadge: draft.heroBadge,
+    heroTitleBefore: draft.heroTitleBefore,
+    heroTitleAccent: draft.heroTitleAccent,
+    heroTitleAfter: draft.heroTitleAfter,
+  });
+
+  const persistHero = (draft: HeroSettings, immediate = false) => {
+    window.clearTimeout(saveTimer.current);
+    const run = async () => {
+      const gen = ++saveGen.current;
+      setSaving(true);
+      try {
+        await saveHeroToApi(heroPayload(draft));
+        if (gen !== saveGen.current) return;
+        if (immediate) toast.success("Updated on website");
+      } catch (err) {
+        if (gen !== saveGen.current) return;
+        toast.error(err instanceof Error ? err.message : "Could not save");
+      } finally {
+        if (gen === saveGen.current) setSaving(false);
+      }
+    };
+    if (immediate) void run();
+    else saveTimer.current = window.setTimeout(() => void run(), 700);
+  };
+
+  const applyHero = (buildNext: (prev: HeroSettings) => HeroSettings, immediate = false) => {
+    const next = buildNext(fRef.current);
+    fRef.current = next;
+    setF(next);
+    persistHero(next, immediate);
+  };
+
   const updateSlideImage = (index: number, value: string) => {
-    const next = slides.map((slide, i) =>
-      i === index ? { ...slide, image: value } : slide,
+    applyHero(
+      (prev) => ({
+        ...prev,
+        backgroundSlides: normalizeBackgroundSlides(prev.backgroundSlides).map((slide, i) =>
+          i === index ? { ...slide, image: value } : slide,
+        ),
+      }),
+      true,
     );
-    setF({ ...f, backgroundSlides: next });
   };
 
   const updateSlideCaption = (index: number, caption: string) => {
-    const next = slides.map((slide, i) =>
-      i === index ? { ...slide, caption } : slide,
-    );
-    setF({ ...f, backgroundSlides: next });
+    applyHero((prev) => ({
+      ...prev,
+      backgroundSlides: normalizeBackgroundSlides(prev.backgroundSlides).map((slide, i) =>
+        i === index ? { ...slide, caption } : slide,
+      ),
+    }));
   };
 
   const clearSlide = (index: number) => {
-    const next = slides.map((slide, i) =>
-      i === index ? { ...slide, image: "" } : slide,
+    applyHero(
+      (prev) => ({
+        ...prev,
+        backgroundSlides: normalizeBackgroundSlides(prev.backgroundSlides).map((slide, i) =>
+          i === index ? { ...slide, image: "" } : slide,
+        ),
+      }),
+      true,
     );
-    setF({ ...f, backgroundSlides: next });
   };
 
   const updateFloat = (index: number, value: string) => {
-    const next = [...floats];
-    next[index] = value;
-    setF({ ...f, floatingImages: next });
+    applyHero((prev) => {
+      const next = normalizeFloatingImages(prev.floatingImages);
+      next[index] = value;
+      return { ...prev, floatingImages: next };
+    }, true);
   };
 
   const clearFloat = (index: number) => {
-    const next = [...floats];
-    next[index] = "";
-    setF({ ...f, floatingImages: next });
-  };
-
-  const saveHero = async () => {
-    try {
-      await saveHeroToApi({
-        tagline: f.tagline,
-        image: f.image,
-        floatingImages: normalizeFloatingImages(f.floatingImages),
-        aboutImage: f.aboutImage,
-        backgroundSlides: normalizeBackgroundSlides(f.backgroundSlides),
-        heroBadge: f.heroBadge,
-        heroTitleBefore: f.heroTitleBefore,
-        heroTitleAccent: f.heroTitleAccent,
-        heroTitleAfter: f.heroTitleAfter,
-      });
-      toast.success("Saved");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not save");
-    }
+    applyHero((prev) => {
+      const next = normalizeFloatingImages(prev.floatingImages);
+      next[index] = "";
+      return { ...prev, floatingImages: next };
+    }, true);
   };
 
   return (
     <div className="space-y-6 max-w-3xl">
     <Card>
-      <h2 className="font-display text-2xl text-primary mb-4">Site Images & Hero</h2>
+      <div className="sticky top-24 z-10 -mx-6 -mt-6 mb-6 flex flex-wrap items-center justify-between gap-3 border-b bg-card/95 px-6 py-4 backdrop-blur supports-[backdrop-filter]:bg-card/90">
+        <div>
+          <h2 className="font-display text-2xl text-primary">Site Images & Hero</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Every change saves automatically and goes live on the website right away.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium text-muted-foreground">
+          {saving ? (
+            <>
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-accent" />
+              Saving…
+            </>
+          ) : (
+            <>Live on site</>
+          )}
+        </div>
+      </div>
       <div className="space-y-6">
         <div>
           <Label className="text-sm font-medium">Hero headline</Label>
@@ -1403,24 +1463,27 @@ function SitePanel() {
             <Field label="Badge">
               <Input
                 value={f.heroBadge}
-                onChange={(e) => setF({ ...f, heroBadge: e.target.value })}
+                onChange={(e) => applyHero((prev) => ({ ...prev, heroBadge: e.target.value }))}
                 placeholder="Dessert Cafe · Chicago"
               />
             </Field>
             <Field label="Tagline">
-              <Input value={f.tagline} onChange={(e) => setF({ ...f, tagline: e.target.value })} />
+              <Input
+                value={f.tagline}
+                onChange={(e) => applyHero((prev) => ({ ...prev, tagline: e.target.value }))}
+              />
             </Field>
             <Field label="Title — first word">
               <Input
                 value={f.heroTitleBefore}
-                onChange={(e) => setF({ ...f, heroTitleBefore: e.target.value })}
+                onChange={(e) => applyHero((prev) => ({ ...prev, heroTitleBefore: e.target.value }))}
                 placeholder="Sweet"
               />
             </Field>
             <Field label="Title — accent (script)">
               <Input
                 value={f.heroTitleAccent}
-                onChange={(e) => setF({ ...f, heroTitleAccent: e.target.value })}
+                onChange={(e) => applyHero((prev) => ({ ...prev, heroTitleAccent: e.target.value }))}
                 placeholder="Drip"
               />
             </Field>
@@ -1428,7 +1491,7 @@ function SitePanel() {
               <Field label="Title — last line">
                 <Input
                   value={f.heroTitleAfter}
-                  onChange={(e) => setF({ ...f, heroTitleAfter: e.target.value })}
+                  onChange={(e) => applyHero((prev) => ({ ...prev, heroTitleAfter: e.target.value }))}
                   placeholder="Every Day."
                 />
               </Field>
@@ -1472,8 +1535,8 @@ function SitePanel() {
           </p>
           <ImageDropzone
             value={f.image}
-            onChange={(v) => setF({ ...f, image: v })}
-            onClear={() => setF({ ...f, image: "" })}
+            onChange={(v) => applyHero((prev) => ({ ...prev, image: v }), true)}
+            onClear={() => applyHero((prev) => ({ ...prev, image: "" }), true)}
             previewClassName="aspect-square max-h-52"
           />
         </div>
@@ -1503,18 +1566,11 @@ function SitePanel() {
           <p className="mt-1 mb-2 text-xs text-muted-foreground">Photo on the About page.</p>
           <ImageDropzone
             value={f.aboutImage}
-            onChange={(v) => setF({ ...f, aboutImage: v })}
-            onClear={() => setF({ ...f, aboutImage: "" })}
+            onChange={(v) => applyHero((prev) => ({ ...prev, aboutImage: v }), true)}
+            onClear={() => applyHero((prev) => ({ ...prev, aboutImage: "" }), true)}
             previewClassName="aspect-video"
           />
         </div>
-
-        <Button
-          className="rounded-full gradient-choco text-primary-foreground"
-          onClick={saveHero}
-        >
-          Save changes
-        </Button>
       </div>
     </Card>
     </div>

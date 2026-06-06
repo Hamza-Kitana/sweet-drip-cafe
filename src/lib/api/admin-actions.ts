@@ -23,8 +23,8 @@ export async function saveOffersVisibleToApi(visible: boolean) {
 }
 
 export async function saveHeroToApi(hero: HeroSettings) {
+  useShop.getState().setHero(hero);
   if (!isApiMode) {
-    useShop.getState().setHero(hero);
     return;
   }
   await api.saveHero(hero);
