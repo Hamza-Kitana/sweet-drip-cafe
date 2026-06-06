@@ -335,10 +335,16 @@ export function initShopSync() {
 
   try {
     const channel = new BroadcastChannel(SHOP_SYNC_CHANNEL);
+    let catalogRefreshTimer: number | undefined;
     channel.onmessage = (event) => {
       if (event.data?.type === "new-order" || event.data?.type === "new-large-order") rehydrate();
       if (event.data?.type === "catalog-updated") {
-        void import("@/lib/api/hydrate").then(({ hydrateShopFromApi }) => hydrateShopFromApi());
+        window.clearTimeout(catalogRefreshTimer);
+        catalogRefreshTimer = window.setTimeout(() => {
+          void import("@/lib/api/hydrate").then(({ hydrateShopFromApi }) =>
+            hydrateShopFromApi({ broadcast: false }),
+          );
+        }, 800);
       }
     };
   } catch {

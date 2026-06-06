@@ -13,8 +13,29 @@ export default defineConfig({
     }),
     viteReact(),
     tailwindcss(),
-    nitro(),
+    nitro({
+      routeRules: {
+        "/assets/**": {
+          headers: { "cache-control": "public, max-age=31536000, immutable" },
+        },
+        "/_build/**": {
+          headers: { "cache-control": "public, max-age=31536000, immutable" },
+        },
+      },
+    }),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("node_modules/motion") || id.includes("node_modules/framer-motion")) return "motion";
+          if (id.includes("node_modules/@stripe")) return "stripe";
+          if (id.includes("node_modules/@radix-ui")) return "radix";
+          if (id.includes("node_modules/react-dom") || id.includes("node_modules/react/")) return "react";
+        },
+      },
+    },
+  },
   environments: {
     ssr: { build: { rollupOptions: { input: "./src/server.ts" } } },
   },

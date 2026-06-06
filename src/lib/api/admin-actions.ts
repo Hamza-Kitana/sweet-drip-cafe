@@ -34,7 +34,6 @@ export async function saveTaxRateToApi(taxRatePercent: number) {
   }
   const result = await api.saveTaxRate(rate);
   useShop.getState().setTaxRatePercent(result.taxRatePercent);
-  await hydrateShopFromApi();
   return result.taxRatePercent;
 }
 
@@ -44,7 +43,7 @@ export async function saveOffersVisibleToApi(visible: boolean) {
     return;
   }
   await api.saveOffersVisible(visible);
-  await hydrateShopFromApi();
+  useShop.getState().setOffersSectionVisible(visible);
 }
 
 export async function saveHeroToApi(hero: HeroSettings) {
@@ -53,7 +52,7 @@ export async function saveHeroToApi(hero: HeroSettings) {
     return;
   }
   await api.saveHero(hero);
-  await hydrateShopFromApi();
+  await hydrateShopFromApi({ force: true });
 }
 
 export async function patchCategory(id: string, data: Partial<Category>) {
@@ -64,7 +63,7 @@ export async function patchCategory(id: string, data: Partial<Category>) {
   const category = useShop.getState().categories.find((c) => c.id === id);
   if (!category) return;
   await api.updateCategory({ ...category, ...data });
-  await hydrateShopFromApi();
+  await hydrateShopFromApi({ force: true });
 }
 
 export async function saveCategory(editing: Category | null, data: Omit<Category, "id">) {
@@ -78,7 +77,7 @@ export async function saveCategory(editing: Category | null, data: Omit<Category
   } else {
     await api.createCategory(data);
   }
-  await hydrateShopFromApi();
+  await hydrateShopFromApi({ force: true });
 }
 
 export async function removeCategory(id: string) {
@@ -87,7 +86,7 @@ export async function removeCategory(id: string) {
     return;
   }
   await api.deleteCategoryApi(id);
-  await hydrateShopFromApi();
+  await hydrateShopFromApi({ force: true });
 }
 
 export async function saveProduct(editing: Product | null, data: Omit<Product, "id">) {
@@ -101,7 +100,7 @@ export async function saveProduct(editing: Product | null, data: Omit<Product, "
   } else {
     await api.createProduct(data);
   }
-  await hydrateShopFromApi();
+  await hydrateShopFromApi({ force: true });
 }
 
 export async function removeProduct(id: string) {
@@ -110,7 +109,7 @@ export async function removeProduct(id: string) {
     return;
   }
   await api.deleteProductApi(id);
-  await hydrateShopFromApi();
+  await hydrateShopFromApi({ force: true });
 }
 
 export async function saveOffer(editing: Offer | null, data: Omit<Offer, "id">) {
@@ -124,7 +123,7 @@ export async function saveOffer(editing: Offer | null, data: Omit<Offer, "id">) 
   } else {
     await api.createOffer(data);
   }
-  await hydrateShopFromApi();
+  await hydrateShopFromApi({ force: true });
 }
 
 export async function patchOffer(id: string, data: Partial<Offer>) {
@@ -135,7 +134,7 @@ export async function patchOffer(id: string, data: Partial<Offer>) {
   const offer = useShop.getState().offers.find((o) => o.id === id);
   if (!offer) return;
   await api.updateOffer({ ...offer, ...data });
-  await hydrateShopFromApi();
+  await hydrateShopFromApi({ force: true });
 }
 
 export async function removeOffer(id: string) {
@@ -144,7 +143,7 @@ export async function removeOffer(id: string) {
     return;
   }
   await api.deleteOfferApi(id);
-  await hydrateShopFromApi();
+  await hydrateShopFromApi({ force: true });
 }
 
 export async function patchOrderStatus(orderId: string, status: Order["status"]) {

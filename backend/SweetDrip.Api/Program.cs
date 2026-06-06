@@ -1,5 +1,7 @@
+using System.IO.Compression;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -11,6 +13,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.ConfigureKestrel(options =>
 {
     options.Limits.MaxRequestBodySize = 52_428_800;
+    options.Limits.MaxConcurrentConnections = 2000;
+    options.Limits.MaxConcurrentUpgradedConnections = 2000;
 });
 
 builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
@@ -18,11 +22,35 @@ builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(optio
     options.MultipartBodyLengthLimit = 52_428_800;
 });
 
-builder.Services.AddDbContext<SweetDripDbContext>(options =>
+builder.Services.AddDbContextPool<SweetDripDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+builder.Services.AddMemoryCache(options =>
+{
+    options.SizeLimit = 64;
+});
+
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.Providers.Add<BrotliCompressionProvider>();
+    options.Providers.Add<GzipCompressionProvider>();
+    options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(["application/json"]);
+});
+builder.Services.Configure<BrotliCompressionProviderOptions>(options =>
+{
+    options.Level = CompressionLevel.Fastest;
+});
+builder.Services.Configure<GzipCompressionProviderOptions>(options =>
+{
+    options.Level = CompressionLevel.Fastest;
+});
+
+builder.Services.AddResponseCaching();
 
 builder.Services.AddScoped<PricingService>();
 builder.Services.AddScoped<CatalogMapper>();
+builder.Services.AddScoped<CatalogCacheService>();
 builder.Services.AddSingleton<JwtTokenService>();
 builder.Services.AddSingleton<StripePaymentService>();
 
@@ -72,6 +100,8 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
+app.UseResponseCompression();
+app.UseResponseCaching();
 app.UseCors("Frontend");
 app.UseAuthentication();
 app.UseAuthorization();

@@ -13,17 +13,19 @@ namespace SweetDrip.Api.Controllers;
 [Authorize]
 [ApiController]
 [Route("api/admin")]
-public class AdminController(SweetDripDbContext db) : ControllerBase
+public class AdminController(SweetDripDbContext db, CatalogCacheService catalogCache) : ControllerBase
 {
     private static readonly JsonSerializerOptions JsonOpts = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+
+    private void InvalidateCatalogCache() => catalogCache.Invalidate();
 
     [HttpGet("overview")]
     public async Task<ActionResult<OverviewStatsDto>> Overview(CancellationToken ct)
     {
-        var paid = await db.Orders.AsNoTracking().Where(o => o.PaymentStatus == PaymentStatus.Paid).ToListAsync(ct);
-        var revenue = paid.Sum(o => o.Total);
-        var count = paid.Count;
-        var newCount = paid.Count(o => o.Status == OrderStatus.New);
+        var paidQuery = db.Orders.AsNoTracking().Where(o => o.PaymentStatus == PaymentStatus.Paid);
+        var revenue = await paidQuery.SumAsync(o => o.Total, ct);
+        var count = await paidQuery.CountAsync(ct);
+        var newCount = await paidQuery.CountAsync(o => o.Status == OrderStatus.New, ct);
         var unpaid = await db.Orders.CountAsync(o => o.PaymentStatus != PaymentStatus.Paid, ct);
         var avg = count > 0 ? Math.Round(revenue / count, 2) : 0;
         return Ok(new OverviewStatsDto(revenue, count, newCount, unpaid, avg));
@@ -45,6 +47,7 @@ public class AdminController(SweetDripDbContext db) : ControllerBase
             "TaxRatePercent",
             rate.ToString("0.##", CultureInfo.InvariantCulture),
             ct);
+        InvalidateCatalogCache();
         return Ok(new TaxRateSettingDto(rate));
     }
 
@@ -52,6 +55,7 @@ public class AdminController(SweetDripDbContext db) : ControllerBase
     public async Task<IActionResult> SetOffersVisible([FromBody] UpdateOffersVisibilityDto body, CancellationToken ct)
     {
         await UpsertSetting("OffersSectionVisible", body.Visible ? "true" : "false", ct);
+        InvalidateCatalogCache();
         return Ok();
     }
 
@@ -69,6 +73,7 @@ public class AdminController(SweetDripDbContext db) : ControllerBase
         hero.HeroTitleAccent = body.HeroTitleAccent;
         hero.HeroTitleAfter = body.HeroTitleAfter;
         await db.SaveChangesAsync(ct);
+        InvalidateCatalogCache();
         return Ok();
     }
 
@@ -79,6 +84,7 @@ public class AdminController(SweetDripDbContext db) : ControllerBase
         var row = new Category { Id = id, Name = body.Name, Image = body.Image, Visible = body.Visible };
         db.Categories.Add(row);
         await db.SaveChangesAsync(ct);
+        InvalidateCatalogCache();
         return Ok(new CategoryDto(row.Id, row.Name, row.Image, row.Visible));
     }
 
@@ -91,6 +97,7 @@ public class AdminController(SweetDripDbContext db) : ControllerBase
         row.Image = body.Image;
         row.Visible = body.Visible;
         await db.SaveChangesAsync(ct);
+        InvalidateCatalogCache();
         return Ok();
     }
 
@@ -101,6 +108,7 @@ public class AdminController(SweetDripDbContext db) : ControllerBase
         if (row == null) return NotFound();
         db.Categories.Remove(row);
         await db.SaveChangesAsync(ct);
+        InvalidateCatalogCache();
         return Ok();
     }
 
@@ -121,6 +129,7 @@ public class AdminController(SweetDripDbContext db) : ControllerBase
         };
         db.Products.Add(row);
         await db.SaveChangesAsync(ct);
+        InvalidateCatalogCache();
         return Ok(CatalogMapper.MapProduct(row));
     }
 
@@ -137,6 +146,7 @@ public class AdminController(SweetDripDbContext db) : ControllerBase
         row.Notes = body.Notes;
         row.NoteChoicesJson = JsonSerializer.Serialize(body.NoteChoices ?? [], JsonOpts);
         await db.SaveChangesAsync(ct);
+        InvalidateCatalogCache();
         return Ok();
     }
 
@@ -147,6 +157,7 @@ public class AdminController(SweetDripDbContext db) : ControllerBase
         if (row == null) return NotFound();
         db.Products.Remove(row);
         await db.SaveChangesAsync(ct);
+        InvalidateCatalogCache();
         return Ok();
     }
 
@@ -168,6 +179,7 @@ public class AdminController(SweetDripDbContext db) : ControllerBase
         };
         db.Offers.Add(row);
         await db.SaveChangesAsync(ct);
+        InvalidateCatalogCache();
         return Ok(CatalogMapper.MapOffer(row));
     }
 
@@ -185,6 +197,7 @@ public class AdminController(SweetDripDbContext db) : ControllerBase
         row.EndAt = string.IsNullOrEmpty(body.EndAt) ? null : DateTime.Parse(body.EndAt);
         row.Active = body.Active;
         await db.SaveChangesAsync(ct);
+        InvalidateCatalogCache();
         return Ok();
     }
 
@@ -195,6 +208,7 @@ public class AdminController(SweetDripDbContext db) : ControllerBase
         if (row == null) return NotFound();
         db.Offers.Remove(row);
         await db.SaveChangesAsync(ct);
+        InvalidateCatalogCache();
         return Ok();
     }
 

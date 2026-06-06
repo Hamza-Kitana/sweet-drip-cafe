@@ -11,22 +11,40 @@ function notifyCatalogUpdated() {
   }
 }
 
-export async function hydrateShopFromApi(options?: { broadcast?: boolean }) {
+let hydrateInflight: Promise<void> | null = null;
+let lastHydrateAt = 0;
+const HYDRATE_COOLDOWN_MS = 1500;
+
+export async function hydrateShopFromApi(options?: { broadcast?: boolean; force?: boolean }) {
   if (!isApiMode) return;
-  const catalog = await api.fetchCatalog();
-  useShop.setState({
-    categories: catalog.categories,
-    products: catalog.products,
-    offers: catalog.offers,
-    hero: {
-      ...catalog.hero,
-      backgroundSlides: catalog.hero.backgroundSlides ?? [],
-      floatingImages: catalog.hero.floatingImages ?? [],
-    },
-    taxRatePercent: catalog.taxRatePercent,
-    offersSectionVisible: catalog.offersSectionVisible,
-  });
-  if (options?.broadcast !== false) notifyCatalogUpdated();
+
+  const now = Date.now();
+  if (!options?.force && hydrateInflight) return hydrateInflight;
+  if (!options?.force && now - lastHydrateAt < HYDRATE_COOLDOWN_MS) return;
+
+  hydrateInflight = (async () => {
+    const catalog = await api.fetchCatalog();
+    useShop.setState({
+      categories: catalog.categories,
+      products: catalog.products,
+      offers: catalog.offers,
+      hero: {
+        ...catalog.hero,
+        backgroundSlides: catalog.hero.backgroundSlides ?? [],
+        floatingImages: catalog.hero.floatingImages ?? [],
+      },
+      taxRatePercent: catalog.taxRatePercent,
+      offersSectionVisible: catalog.offersSectionVisible,
+    });
+    lastHydrateAt = Date.now();
+    if (options?.broadcast !== false) notifyCatalogUpdated();
+  })();
+
+  try {
+    await hydrateInflight;
+  } finally {
+    hydrateInflight = null;
+  }
 }
 
 export async function refreshAdminDataFromApi() {

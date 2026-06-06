@@ -10,15 +10,21 @@ type CatalogResponse = {
   offersSectionVisible: boolean;
 };
 
+let catalogInflight: Promise<CatalogResponse> | null = null;
+
+export async function fetchCatalog() {
+  if (catalogInflight) return catalogInflight;
+  catalogInflight = apiFetch<CatalogResponse>("/api/catalog").finally(() => {
+    catalogInflight = null;
+  });
+  return catalogInflight;
+}
+
 type ApiOrder = Order & {
   paymentStatus: "pending" | "paid" | "failed";
   paymentFailureReason?: string | null;
   stripePaymentIntentId?: string | null;
 };
-
-export async function fetchCatalog() {
-  return apiFetch<CatalogResponse>("/api/catalog");
-}
 
 export async function loginAdmin(username: string, password: string) {
   return apiFetch<{ token: string; username: string }>("/api/auth/login", {
