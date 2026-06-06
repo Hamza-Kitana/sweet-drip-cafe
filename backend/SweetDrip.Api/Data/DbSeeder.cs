@@ -116,6 +116,16 @@ public static class DbSeeder
             """);
     }
 
+    public static async Task EnsureOrderItemSelectedOptionsColumnAsync(SweetDripDbContext db)
+    {
+        await db.Database.ExecuteSqlRawAsync("""
+            IF COL_LENGTH('OrderItems', 'SelectedOptionsJson') IS NULL
+            BEGIN
+                ALTER TABLE OrderItems ADD SelectedOptionsJson NVARCHAR(MAX) NULL;
+            END
+            """);
+    }
+
     private static Product Product(string id, string catId, string name, string desc, decimal price, string image, string notes, string[] choices) =>
         new()
         {

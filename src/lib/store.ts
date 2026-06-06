@@ -8,6 +8,19 @@ import float2 from "@/assets/float-2.png";
 import float3 from "@/assets/float-3.png";
 
 export type ProductNoteChoice = { label: string; extraPrice: number };
+export type ProductOptionSelectionType = "single" | "multiple";
+export type ProductOptionGroup = {
+  id: string;
+  label: string;
+  selectionType: ProductOptionSelectionType;
+  required: boolean;
+  choices: ProductNoteChoice[];
+};
+export type CartSelectedOption = {
+  groupId: string;
+  groupLabel: string;
+  choices: string[];
+};
 export type Product = {
   id: string;
   categoryId: string;
@@ -16,6 +29,8 @@ export type Product = {
   price: number;
   image?: string;
   notes: string;
+  optionGroups: ProductOptionGroup[];
+  /** @deprecated flat list derived from optionGroups */
   noteChoices: ProductNoteChoice[];
 };
 export type Category = { id: string; name: string; image: string; visible?: boolean };
@@ -37,7 +52,9 @@ export type CartItem = {
   price: number;
   qty: number;
   note?: string;
+  /** @deprecated summary string — use selectedOptions */
   noteChoice?: string;
+  selectedOptions?: CartSelectedOption[];
   image?: string;
 };
 export type Order = {
@@ -128,16 +145,31 @@ const seedCategories: Category[] = [
   { id: "pastries",  name: "Pastries",   image: "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=800" },
 ];
 
+function makeGroup(
+  label: string,
+  choices: ProductNoteChoice[],
+  selectionType: ProductOptionSelectionType = "single",
+  required = true,
+): ProductOptionGroup {
+  return {
+    id: label.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+    label,
+    selectionType,
+    required,
+    choices,
+  };
+}
+
 const seedProducts: Product[] = [
-  { id: "p1", categoryId: "cakes", name: "Belgian Chocolate Cake", description: "Rich layered cake with Belgian chocolate ganache and fresh berries.", price: 8.5, image: "https://images.unsplash.com/photo-1606313564200-e75d5e30476c?w=900", notes: "Sweetness", noteChoices: [{ label: "Regular sugar", extraPrice: 0 }, { label: "Less sugar", extraPrice: 0 }, { label: "No sugar", extraPrice: 0 }] },
-  { id: "p2", categoryId: "cakes", name: "Pistachio Dream", description: "Layers of pistachio cream with a hint of rose.", price: 7.5, image: "https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=900", notes: "Sweetness", noteChoices: [{ label: "Regular", extraPrice: 0 }, { label: "Less sweet", extraPrice: 0 }, { label: "Extra sweet", extraPrice: 1 }] },
-  { id: "p3", categoryId: "icecream", name: "Triple Scoop Cone", description: "Three premium scoops in a fresh waffle cone.", price: 6.0, image: "https://images.unsplash.com/photo-1488900128323-21503983a07e?w=900", notes: "Flavors", noteChoices: [{ label: "Choco/Vanilla/Pistachio", extraPrice: 0 }, { label: "Strawberry/Vanilla/Choco", extraPrice: 0 }, { label: "Surprise me", extraPrice: 0 }] },
-  { id: "p4", categoryId: "icecream", name: "Chocolate Sundae", description: "Vanilla ice cream drowned in warm chocolate sauce.", price: 5.5, image: "https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=900", notes: "Toppings", noteChoices: [{ label: "With nuts", extraPrice: 0 }, { label: "Without nuts", extraPrice: 0 }, { label: "Extra chocolate", extraPrice: 0.75 }] },
-  { id: "p5", categoryId: "drinks", name: "Iced Caramel Latte", description: "Espresso, milk, caramel and ice. Smooth and sweet.", price: 4.5, image: "https://images.unsplash.com/photo-1461023058943-07fcbe16d735?w=900", notes: "Sugar", noteChoices: [{ label: "Regular", extraPrice: 0 }, { label: "Less sugar", extraPrice: 0 }, { label: "No sugar", extraPrice: 0 }] },
-  { id: "p6", categoryId: "drinks", name: "Hot Chocolate", description: "Velvety dark hot chocolate with whipped cream.", price: 4.0, image: "https://images.unsplash.com/photo-1517578239113-b03992dcdd25?w=900", notes: "Style", noteChoices: [{ label: "Classic", extraPrice: 0 }, { label: "With marshmallows", extraPrice: 0.5 }, { label: "Spicy", extraPrice: 0 }] },
-  { id: "p7", categoryId: "pastries", name: "Butter Croissant", description: "Flaky, golden, perfectly buttery.", price: 3.5, image: "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=900", notes: "Filling", noteChoices: [{ label: "Plain", extraPrice: 0 }, { label: "Chocolate", extraPrice: 0.75 }, { label: "Almond", extraPrice: 1 }] },
-  { id: "p8", categoryId: "pastries", name: "Cinnamon Roll", description: "Warm, gooey, swirled with cinnamon glaze.", price: 4.0, image: "https://images.unsplash.com/photo-1509365465985-25d11c17e812?w=900", notes: "Glaze", noteChoices: [{ label: "Regular", extraPrice: 0 }, { label: "Extra glaze", extraPrice: 0.5 }, { label: "No glaze", extraPrice: 0 }] },
-];
+  { id: "p1", categoryId: "cakes", name: "Belgian Chocolate Cake", description: "Rich layered cake with Belgian chocolate ganache and fresh berries.", price: 8.5, image: "https://images.unsplash.com/photo-1606313564200-e75d5e30476c?w=900", notes: "Sweetness", optionGroups: [makeGroup("Sweetness", [{ label: "Regular sugar", extraPrice: 0 }, { label: "Less sugar", extraPrice: 0 }, { label: "No sugar", extraPrice: 0 }])], noteChoices: [] },
+  { id: "p2", categoryId: "cakes", name: "Pistachio Dream", description: "Layers of pistachio cream with a hint of rose.", price: 7.5, image: "https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=900", notes: "Sweetness", optionGroups: [makeGroup("Sweetness", [{ label: "Regular", extraPrice: 0 }, { label: "Less sweet", extraPrice: 0 }, { label: "Extra sweet", extraPrice: 1 }])], noteChoices: [] },
+  { id: "p3", categoryId: "icecream", name: "Triple Scoop Cone", description: "Three premium scoops in a fresh waffle cone.", price: 6.0, image: "https://images.unsplash.com/photo-1488900128323-21503983a07e?w=900", notes: "Flavors", optionGroups: [makeGroup("Flavors", [{ label: "Choco/Vanilla/Pistachio", extraPrice: 0 }, { label: "Strawberry/Vanilla/Choco", extraPrice: 0 }, { label: "Surprise me", extraPrice: 0 }])], noteChoices: [] },
+  { id: "p4", categoryId: "icecream", name: "Chocolate Sundae", description: "Vanilla ice cream drowned in warm chocolate sauce.", price: 5.5, image: "https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=900", notes: "Toppings", optionGroups: [makeGroup("Toppings", [{ label: "With nuts", extraPrice: 0 }, { label: "Without nuts", extraPrice: 0 }, { label: "Extra chocolate", extraPrice: 0.75 }])], noteChoices: [] },
+  { id: "p5", categoryId: "drinks", name: "Iced Caramel Latte", description: "Espresso, milk, caramel and ice. Smooth and sweet.", price: 4.5, image: "https://images.unsplash.com/photo-1461023058943-07fcbe16d735?w=900", notes: "Sugar", optionGroups: [makeGroup("Sugar", [{ label: "Regular", extraPrice: 0 }, { label: "Less sugar", extraPrice: 0 }, { label: "No sugar", extraPrice: 0 }]), makeGroup("Ice", [{ label: "Regular ice", extraPrice: 0 }, { label: "Light ice", extraPrice: 0 }, { label: "No ice", extraPrice: 0 }], "single", false)], noteChoices: [] },
+  { id: "p6", categoryId: "drinks", name: "Hot Chocolate", description: "Velvety dark hot chocolate with whipped cream.", price: 4.0, image: "https://images.unsplash.com/photo-1517578239113-b03992dcdd25?w=900", notes: "Style", optionGroups: [makeGroup("Style", [{ label: "Classic", extraPrice: 0 }, { label: "With marshmallows", extraPrice: 0.5 }, { label: "Spicy", extraPrice: 0 }])], noteChoices: [] },
+  { id: "p7", categoryId: "pastries", name: "Butter Croissant", description: "Flaky, golden, perfectly buttery.", price: 3.5, image: "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=900", notes: "Filling", optionGroups: [makeGroup("Filling", [{ label: "Plain", extraPrice: 0 }, { label: "Chocolate", extraPrice: 0.75 }, { label: "Almond", extraPrice: 1 }])], noteChoices: [] },
+  { id: "p8", categoryId: "pastries", name: "Cinnamon Roll", description: "Warm, gooey, swirled with cinnamon glaze.", price: 4.0, image: "https://images.unsplash.com/photo-1509365465985-25d11c17e812?w=900", notes: "Glaze", optionGroups: [makeGroup("Glaze", [{ label: "Regular", extraPrice: 0 }, { label: "Extra glaze", extraPrice: 0.5 }, { label: "No glaze", extraPrice: 0 }])], noteChoices: [] },
+].map((p) => ({ ...p, noteChoices: p.optionGroups.flatMap((g) => g.choices) }));
 
 export type BackgroundSlide = {
   image: string;
@@ -305,8 +337,11 @@ export function calcOrderTotal(subtotal: number, tip: number, taxRatePercent: nu
 
 const id = () => Math.random().toString(36).slice(2, 10);
 
-function cartLineKey(item: Pick<CartItem, "productId" | "price" | "noteChoice" | "note">) {
-  return [item.productId, item.price, item.noteChoice ?? "", (item.note ?? "").trim()].join("|");
+import { serializeSelectedOptionsKey } from "@/lib/product-options";
+
+function cartLineKey(item: Pick<CartItem, "productId" | "price" | "note" | "selectedOptions" | "noteChoice">) {
+  const opts = serializeSelectedOptionsKey(item.selectedOptions) || (item.noteChoice ?? "");
+  return [item.productId, item.price, opts, (item.note ?? "").trim()].join("|");
 }
 
 /** Merge identical cart lines (same product, options, and price) into one row with combined qty */

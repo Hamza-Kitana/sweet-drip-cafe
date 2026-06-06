@@ -30,11 +30,18 @@ public class CatalogMapper(SweetDripDbContext db)
         );
     }
 
-    public static ProductDto MapProduct(Product p) =>
-        new(p.Id, p.CategoryId, p.Name, p.Description, p.Price, p.Image, p.Notes,
-            NoteChoicesParser.Parse(p.NoteChoicesJson)
-                .Select(c => new ProductNoteChoiceDto(c.Label, c.ExtraPrice))
-                .ToArray());
+    public static ProductDto MapProduct(Product p)
+    {
+        var groups = ProductOptionsParser.ParseGroups(p.NoteChoicesJson, p.Notes);
+        return new ProductDto(
+            p.Id, p.CategoryId, p.Name, p.Description, p.Price, p.Image, p.Notes,
+            groups.Select(MapOptionGroup).ToArray(),
+            groups.SelectMany(g => g.Choices).Select(c => new ProductNoteChoiceDto(c.Label, c.ExtraPrice)).ToArray());
+    }
+
+    private static ProductOptionGroupDto MapOptionGroup(ProductOptionGroup group) =>
+        new(group.Id, group.Label, group.SelectionType, group.Required,
+            group.Choices.Select(c => new ProductOptionChoiceDto(c.Label, c.ExtraPrice)).ToArray());
 
     public static OfferDto MapOffer(Offer o) =>
         new(o.Id, o.Title, o.Description, o.Price, o.Image,
@@ -50,7 +57,7 @@ public class CatalogMapper(SweetDripDbContext db)
 
     public static OrderDto MapOrder(Order o) =>
         new(o.Id, o.CreatedAt.ToString("o"),
-            o.Items.Select(i => new OrderItemDto(i.ProductId, i.Name, i.Price, i.Qty, i.Note, i.NoteChoice, i.Image)).ToArray(),
+            o.Items.Select(MapOrderItem).ToArray(),
             new OrderCustomerDto(o.CustomerName, o.CustomerEmail, o.CustomerPhone, o.PickupDate, o.PickupTime, o.Message),
             o.Subtotal, o.Tip, o.Tax, o.TaxRate, o.Total,
             MapOrderStatusForClient(o.Status),
@@ -62,6 +69,24 @@ public class CatalogMapper(SweetDripDbContext db)
                 _ => "pending",
             },
             o.PaymentFailureReason, o.StripePaymentIntentId);
+
+    private static OrderItemDto MapOrderItem(OrderItem i)
+    {
+        SelectedOptionDto[]? selected = null;
+        if (!string.IsNullOrWhiteSpace(i.SelectedOptionsJson))
+        {
+            try
+            {
+                selected = JsonSerializer.Deserialize<SelectedOptionDto[]>(i.SelectedOptionsJson, JsonOpts) ?? [];
+            }
+            catch
+            {
+                selected = [];
+            }
+        }
+
+        return new OrderItemDto(i.ProductId, i.Name, i.Price, i.Qty, i.Note, i.NoteChoice, selected, i.Image);
+    }
 
     public static string MapOrderStatusForClient(OrderStatus status) => status switch
     {

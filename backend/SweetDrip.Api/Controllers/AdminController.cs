@@ -172,8 +172,8 @@ public class AdminController(SweetDripDbContext db, CatalogCacheService catalogC
             Description = body.Description,
             Price = body.Price,
             Image = body.Image,
-            Notes = body.Notes,
-            NoteChoicesJson = JsonSerializer.Serialize(body.NoteChoices ?? [], JsonOpts),
+            Notes = body.OptionGroups?.FirstOrDefault()?.Label ?? body.Notes ?? "",
+            NoteChoicesJson = JsonSerializer.Serialize(body.OptionGroups ?? [], JsonOpts),
         };
         db.Products.Add(row);
         await db.SaveChangesAsync(ct);
@@ -192,7 +192,8 @@ public class AdminController(SweetDripDbContext db, CatalogCacheService catalogC
         row.Price = body.Price;
         row.Image = body.Image;
         row.Notes = body.Notes;
-        row.NoteChoicesJson = JsonSerializer.Serialize(body.NoteChoices ?? [], JsonOpts);
+        row.NoteChoicesJson = JsonSerializer.Serialize(body.OptionGroups ?? [], JsonOpts);
+        row.Notes = body.OptionGroups?.FirstOrDefault()?.Label ?? body.Notes ?? "";
         await db.SaveChangesAsync(ct);
         InvalidateCatalogCache();
         return Ok();

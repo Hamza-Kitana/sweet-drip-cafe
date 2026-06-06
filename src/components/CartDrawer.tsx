@@ -3,7 +3,7 @@ import { Minus, Plus, ShoppingBag, Sparkles, Trash2, X } from "lucide-react";
 import { useCart, fmt, useShop } from "@/lib/store";
 import { isOfferCartItem } from "@/lib/offers";
 import { ProductImageDisplay } from "@/components/ProductImageDisplay";
-import { findNoteChoice, formatChoiceWithExtra } from "@/lib/product-options";
+import { formatSelectedOptionsDetailed, formatSelectedOptionsSummary } from "@/lib/product-options";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -87,7 +87,10 @@ export function CartDrawer() {
               {items.map((it) => {
                 const product = products.find((p) => p.id === it.productId);
                 const categoryImage = categories.find((c) => c.id === product?.categoryId)?.image;
-                const choiceRow = product ? findNoteChoice(product, it.noteChoice) : undefined;
+                const optionLines = product
+                  ? formatSelectedOptionsDetailed(product, it.selectedOptions, fmt)
+                  : [];
+                const optionSummary = it.noteChoice || formatSelectedOptionsSummary(it.selectedOptions);
                 return (
                 <div
                   key={it.uid}
@@ -113,11 +116,12 @@ export function CartDrawer() {
                       </div>
                       <span className="shrink-0 text-sm font-semibold text-primary">{fmt(it.price * it.qty)}</span>
                     </div>
-                    {it.noteChoice && (
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        {product?.notes ? `${product.notes}: ` : "Option: "}
-                        {choiceRow ? formatChoiceWithExtra(choiceRow, fmt) : it.noteChoice}
-                      </p>
+                    {(optionLines.length > 0 || optionSummary) && (
+                      <div className="mt-0.5 space-y-0.5 text-xs text-muted-foreground">
+                        {optionLines.length > 0
+                          ? optionLines.map((line) => <p key={line}>{line}</p>)
+                          : optionSummary && <p>{optionSummary}</p>}
+                      </div>
                     )}
                     {it.note && (
                       <p className="text-xs italic text-muted-foreground">&ldquo;{it.note}&rdquo;</p>

@@ -1,20 +1,23 @@
 import { createFileRoute, Link, useNavigate, useParams } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { ChevronLeft, Plus, Minus, ShoppingBag } from "lucide-react";
 import { useShop, useCart, fmt } from "@/lib/store";
 import { ProductImageDisplay } from "@/components/ProductImageDisplay";
+import { ProductOptionSelector } from "@/components/ProductOptionSelector";
 import {
-  formatChoiceExtra,
-  getChoiceLabel,
+  defaultSelectedOptions,
+  formatSelectedOptionsSummary,
   getProductPriceRange,
+  productHasOptions,
   resolveProductUnitPrice,
+  validateSelectedOptions,
+  type CartSelectedOption,
 } from "@/lib/product-options";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/product/$id")({
   component: ProductPage,
@@ -28,8 +31,12 @@ function ProductPage() {
   const add = useCart(s => s.add);
   const product = products.find(p => p.id === id);
   const [qty, setQty] = useState(1);
-  const [choice, setChoice] = useState<string | undefined>(undefined);
+  const [selectedOptions, setSelectedOptions] = useState<CartSelectedOption[]>([]);
   const [note, setNote] = useState("");
+
+  useEffect(() => {
+    if (product) setSelectedOptions(defaultSelectedOptions(product));
+  }, [product?.id]);
 
   if (!product) {
     return (
@@ -40,15 +47,15 @@ function ProductPage() {
     );
   }
   const cat = categories.find(c => c.id === product.categoryId);
-  const hasOptions = product.noteChoices.length > 0;
-  const selectedChoice = choice ?? (hasOptions ? getChoiceLabel(product.noteChoices[0]) : undefined);
-  const unitPrice = resolveProductUnitPrice(product, selectedChoice);
+  const hasOptions = productHasOptions(product);
+  const unitPrice = resolveProductUnitPrice(product, selectedOptions);
   const priceRange = getProductPriceRange(product);
-  const showPriceRange = hasOptions && priceRange.min !== priceRange.max && !choice;
+  const showPriceRange = hasOptions && priceRange.min !== priceRange.max && unitPrice === product.price;
 
   const onAdd = () => {
-    if (hasOptions && !selectedChoice) {
-      toast.error(`Please choose ${product.notes.toLowerCase()}`);
+    const error = validateSelectedOptions(product, selectedOptions);
+    if (error) {
+      toast.error(error);
       return;
     }
     add({
@@ -57,7 +64,8 @@ function ProductPage() {
       price: unitPrice,
       qty,
       image: product.image,
-      noteChoice: selectedChoice,
+      selectedOptions,
+      noteChoice: formatSelectedOptionsSummary(selectedOptions),
       note,
     });
     toast.success("Added to cart");
@@ -88,7 +96,7 @@ function ProductPage() {
             </div>
             {hasOptions && (
               <p className="mt-1 text-xs text-muted-foreground">
-                Base {fmt(product.price)} · final price depends on your selection
+                Base {fmt(product.price)} · price updates with your selections
               </p>
             )}
           </div>
@@ -96,34 +104,11 @@ function ProductPage() {
 
           {hasOptions && (
             <div className="mt-8">
-              <Label className="mb-3 block font-semibold">{product.notes}</Label>
-              <div className="flex flex-wrap gap-2">
-                {product.noteChoices.map((c) => {
-                  const label = getChoiceLabel(c);
-                  const extraLabel = formatChoiceExtra(c.extraPrice, fmt);
-                  const selected = selectedChoice === label;
-                  return (
-                    <button
-                      key={label}
-                      type="button"
-                      onClick={() => setChoice(label)}
-                      className={cn(
-                        "inline-flex items-center gap-2 rounded-full border-2 px-4 py-2 text-sm transition",
-                        selected
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : "border-border hover:border-primary/50",
-                      )}
-                    >
-                      <span>{label}</span>
-                      {extraLabel && (
-                        <span className={cn("text-xs font-semibold", selected ? "text-primary-foreground/90" : "text-primary")}>
-                          {extraLabel}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
+              <ProductOptionSelector
+                product={product}
+                selectedOptions={selectedOptions}
+                onChange={setSelectedOptions}
+              />
             </div>
           )}
 

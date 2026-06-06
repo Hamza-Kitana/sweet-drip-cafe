@@ -25,7 +25,7 @@ CREATE TABLE Products (
     Price           DECIMAL(10,2) NOT NULL,
     Image           NVARCHAR(MAX) NOT NULL,
     Notes           NVARCHAR(MAX) NOT NULL DEFAULT '',
-    NoteChoicesJson NVARCHAR(MAX) NOT NULL DEFAULT '[]' -- [{ "label": "Large", "extraPrice": 1.5 }]
+    NoteChoicesJson NVARCHAR(MAX) NOT NULL DEFAULT '[]' -- option groups JSON
 );
 
 CREATE TABLE Offers (
@@ -70,7 +70,8 @@ CREATE TABLE OrderItems (
     Price      DECIMAL(10,2) NOT NULL,
     Qty        INT           NOT NULL,
     Note       NVARCHAR(500) NULL,
-    NoteChoice NVARCHAR(120) NULL,
+    NoteChoice NVARCHAR(500) NULL,
+    SelectedOptionsJson NVARCHAR(MAX) NULL,
     Image      NVARCHAR(MAX) NULL
 );
 

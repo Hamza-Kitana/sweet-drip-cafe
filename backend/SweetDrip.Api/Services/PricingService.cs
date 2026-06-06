@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using SweetDrip.Api.Data;
 using SweetDrip.Api.DTOs;
@@ -8,6 +9,8 @@ namespace SweetDrip.Api.Services;
 
 public class PricingService(SweetDripDbContext db)
 {
+    private static readonly JsonSerializerOptions JsonOpts = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+
     public async Task<(List<OrderItem> Items, decimal Subtotal, decimal TaxRate, decimal Tax, decimal Total)> BuildOrderAsync(
         IEnumerable<CartLineDto> lines,
         decimal tip,
@@ -23,16 +26,15 @@ public class PricingService(SweetDripDbContext db)
         foreach (var line in lines)
         {
             decimal unitPrice;
+            List<CartSelectedOption>? selections = null;
             if (products.TryGetValue(line.ProductId, out var product))
             {
-                unitPrice = product.Price;
-                if (!string.IsNullOrWhiteSpace(line.NoteChoice))
-                {
-                    var match = NoteChoicesParser.Parse(product.NoteChoicesJson)
-                        .FirstOrDefault(c => string.Equals(c.Label, line.NoteChoice, StringComparison.OrdinalIgnoreCase));
-                    if (match != null)
-                        unitPrice += match.ExtraPrice;
-                }
+                selections = BuildSelections(product, line);
+                unitPrice = ProductOptionsParser.CalculateUnitPrice(
+                    product.Price,
+                    product.NoteChoicesJson,
+                    product.Notes,
+                    selections);
             }
             else if (offers.TryGetValue(line.ProductId, out var offer))
                 unitPrice = offer.Price;
@@ -46,6 +48,9 @@ public class PricingService(SweetDripDbContext db)
             else
                 throw new InvalidOperationException($"Unknown product: {line.ProductId}");
 
+            var summary = ProductOptionsParser.FormatSelectionSummary(selections);
+            if (string.IsNullOrWhiteSpace(summary)) summary = line.NoteChoice;
+
             var lineTotal = unitPrice * line.Qty;
             subtotal += lineTotal;
             orderItems.Add(new OrderItem
@@ -55,7 +60,12 @@ public class PricingService(SweetDripDbContext db)
                 Price = unitPrice,
                 Qty = line.Qty,
                 Note = line.Note,
-                NoteChoice = line.NoteChoice,
+                NoteChoice = summary,
+                SelectedOptionsJson = selections is { Count: > 0 }
+                    ? JsonSerializer.Serialize(
+                        selections.Select(s => new SelectedOptionDto(s.GroupId, s.GroupLabel, s.Choices)),
+                        JsonOpts)
+                    : null,
                 Image = line.Image,
             });
         }
@@ -66,6 +76,24 @@ public class PricingService(SweetDripDbContext db)
         var tax = Math.Round(subtotal * (taxRate / 100m), 2);
         var total = Math.Round(subtotal + tax + tip, 2);
         return (orderItems, subtotal, taxRate, tax, total);
+    }
+
+    private static List<CartSelectedOption>? BuildSelections(Product product, CartLineDto line)
+    {
+        if (line.SelectedOptions is { Length: > 0 })
+        {
+            return line.SelectedOptions
+                .Select(s => new CartSelectedOption(s.GroupId, s.GroupLabel, s.Choices))
+                .ToList();
+        }
+
+        if (string.IsNullOrWhiteSpace(line.NoteChoice)) return null;
+
+        var groups = ProductOptionsParser.ParseGroups(product.NoteChoicesJson, product.Notes);
+        var firstGroup = groups.FirstOrDefault();
+        if (firstGroup == null) return null;
+
+        return [new CartSelectedOption(firstGroup.Id, firstGroup.Label, [line.NoteChoice])];
     }
 
     public async Task<decimal> GetTaxRateAsync(CancellationToken ct = default)

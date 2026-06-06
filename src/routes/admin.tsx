@@ -7,9 +7,9 @@ import { ConfirmProvider, useConfirm } from "@/components/ConfirmDialog";
 import { ImageDropzone, ImageUploadButton } from "@/components/ImageDropzone";
 import { ProductImageDisplay } from "@/components/ProductImageDisplay";
 import { ProductImagePicker } from "@/components/ProductImagePicker";
-import { ProductOptionsEditor } from "@/components/ProductOptionsEditor";
+import { ProductOptionGroupsEditor } from "@/components/ProductOptionGroupsEditor";
 import { PRODUCT_IMAGE_SECTION, parseProductImageStored } from "@/lib/product-image";
-import { normalizeNoteChoices, type ProductNoteChoice } from "@/lib/product-options";
+import { normalizeOptionGroups, productHasOptions, type ProductOptionGroup } from "@/lib/product-options";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -1396,8 +1396,8 @@ function categoryImage(categories: Category[], categoryId: string) {
   return categories.find((c) => c.id === categoryId)?.image ?? "";
 }
 
-function productHasOptions(product?: Product | null) {
-  return (product?.noteChoices?.length ?? 0) > 0;
+function productHasCustomization(product?: Product | null) {
+  return product ? productHasOptions(product) : false;
 }
 
 function ProductDialog({ open, onOpenChange, editing, categories, defaultCategoryId, onSave }: {
@@ -1409,24 +1409,29 @@ function ProductDialog({ open, onOpenChange, editing, categories, defaultCategor
   onSave: (data: Omit<Product, "id">) => void;
 }) {
   const initialCategoryId = editing?.categoryId ?? defaultCategoryId ?? categories[0]?.id ?? "";
-  const [notesEnabled, setNotesEnabled] = useState(() => productHasOptions(editing));
+  const [notesEnabled, setNotesEnabled] = useState(() => productHasCustomization(editing));
 
-  const [f, setF] = useState<Omit<Product, "id">>({
-    name: editing?.name ?? "",
-    description: editing?.description ?? "",
-    price: editing?.price ?? 0,
-    image: editing?.image?.trim() || PRODUCT_IMAGE_SECTION,
-    categoryId: initialCategoryId,
-    notes: editing?.notes ?? "Sweetness",
-    noteChoices: normalizeNoteChoices(editing?.noteChoices ?? []),
+  const [f, setF] = useState<Omit<Product, "id">>(() => {
+    const optionGroups = normalizeOptionGroups(editing?.optionGroups, editing?.notes, editing?.noteChoices);
+    return {
+      name: editing?.name ?? "",
+      description: editing?.description ?? "",
+      price: editing?.price ?? 0,
+      image: editing?.image?.trim() || PRODUCT_IMAGE_SECTION,
+      categoryId: initialCategoryId,
+      notes: optionGroups[0]?.label ?? editing?.notes ?? "Sweetness",
+      optionGroups,
+      noteChoices: optionGroups.flatMap((g) => g.choices),
+    };
   });
-  const [choiceRows, setChoiceRows] = useState<ProductNoteChoice[]>(() =>
-    normalizeNoteChoices(editing?.noteChoices ?? []),
+  const [optionGroups, setOptionGroups] = useState<ProductOptionGroup[]>(() =>
+    normalizeOptionGroups(editing?.optionGroups, editing?.notes, editing?.noteChoices),
   );
 
   const resetForm = () => {
     const categoryId = editing?.categoryId ?? defaultCategoryId ?? categories[0]?.id ?? "";
-    const enabled = productHasOptions(editing);
+    const enabled = productHasCustomization(editing);
+    const groups = normalizeOptionGroups(editing?.optionGroups, editing?.notes, editing?.noteChoices);
     setNotesEnabled(enabled);
     setF({
       name: editing?.name ?? "",
@@ -1434,10 +1439,11 @@ function ProductDialog({ open, onOpenChange, editing, categories, defaultCategor
       price: editing?.price ?? 0,
       image: editing?.image?.trim() || PRODUCT_IMAGE_SECTION,
       categoryId,
-      notes: editing?.notes ?? "Sweetness",
-      noteChoices: normalizeNoteChoices(editing?.noteChoices ?? []),
+      notes: groups[0]?.label ?? editing?.notes ?? "Sweetness",
+      optionGroups: groups,
+      noteChoices: groups.flatMap((g) => g.choices),
     });
-    setChoiceRows(normalizeNoteChoices(editing?.noteChoices ?? []));
+    setOptionGroups(groups);
   };
 
   const handleCategoryChange = (nextCategoryId: string) => {
@@ -1484,35 +1490,40 @@ function ProductDialog({ open, onOpenChange, editing, categories, defaultCategor
             </Field>
           </div>
           <div className="sm:col-span-2">
-            <ProductOptionsEditor
+            <ProductOptionGroupsEditor
               enabled={notesEnabled}
               onEnabledChange={setNotesEnabled}
-              optionLabel={f.notes}
-              onOptionLabelChange={(notes) => setF({ ...f, notes })}
-              choices={choiceRows}
-              onChoicesChange={setChoiceRows}
+              groups={optionGroups}
+              onGroupsChange={setOptionGroups}
             />
           </div>
         </div>
         <Button className="w-full mt-4 rounded-full gradient-choco text-primary-foreground"
           onClick={() => {
-            const noteChoices = notesEnabled
-              ? choiceRows
-                  .map((row) => ({
-                    label: row.label.trim(),
-                    extraPrice: Math.max(0, +row.extraPrice || 0),
+            const groups = notesEnabled
+              ? optionGroups
+                  .map((group) => ({
+                    ...group,
+                    label: group.label.trim() || "Options",
+                    choices: group.choices
+                      .map((row) => ({
+                        label: row.label.trim(),
+                        extraPrice: Math.max(0, +row.extraPrice || 0),
+                      }))
+                      .filter((row) => row.label),
                   }))
-                  .filter((row) => row.label)
+                  .filter((group) => group.choices.length > 0)
               : [];
-            if (notesEnabled && noteChoices.length === 0) {
-              toast.error("Add at least one choice, or turn off customization options");
+            if (notesEnabled && groups.length === 0) {
+              toast.error("Add at least one option group with choices, or turn off customization");
               return;
             }
             onSave({
               ...f,
               image: (f.image ?? "").trim() || PRODUCT_IMAGE_SECTION,
-              notes: notesEnabled ? f.notes.trim() || "Option" : "",
-              noteChoices,
+              optionGroups: groups,
+              noteChoices: groups.flatMap((g) => g.choices),
+              notes: groups[0]?.label ?? "",
             });
           }}>Save product</Button>
       </DialogContent>

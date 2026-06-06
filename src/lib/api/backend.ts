@@ -76,6 +76,7 @@ export async function checkoutOrder(input: {
     qty: number;
     note?: string;
     noteChoice?: string;
+    selectedOptions?: import("@/lib/store").CartSelectedOption[];
     image?: string;
   }>;
   tip: number;

@@ -87,6 +87,7 @@ function CheckoutPage() {
             qty: i.qty,
             note: i.note,
             noteChoice: i.noteChoice,
+            selectedOptions: i.selectedOptions,
             image: i.image,
           })),
           tip: tipAmount,

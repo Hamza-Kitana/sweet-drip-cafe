@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import type { Product } from "@/lib/store";
 import { fmt, useCart, useShop } from "@/lib/store";
 import { ProductImageDisplay } from "@/components/ProductImageDisplay";
-import { getChoiceLabel, resolveProductUnitPrice } from "@/lib/product-options";
+import { defaultSelectedOptions, formatSelectedOptionsSummary, resolveProductUnitPrice } from "@/lib/product-options";
 
 export function ProductCard({ p, index = 0 }: { p: Product; index?: number }) {
   const add = useCart((s) => s.add);
@@ -15,16 +15,16 @@ export function ProductCard({ p, index = 0 }: { p: Product; index?: number }) {
   const onAdd = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    const firstChoice = p.noteChoices[0];
-    const noteChoice = firstChoice ? getChoiceLabel(firstChoice) : undefined;
-    const price = resolveProductUnitPrice(p, noteChoice);
+    const selectedOptions = defaultSelectedOptions(p);
+    const price = resolveProductUnitPrice(p, selectedOptions);
     add({
       productId: p.id,
       name: p.name,
       price,
       qty: 1,
       image: p.image,
-      noteChoice,
+      selectedOptions,
+      noteChoice: formatSelectedOptionsSummary(selectedOptions),
     });
     toast.success(`${p.name} added to cart`);
   };

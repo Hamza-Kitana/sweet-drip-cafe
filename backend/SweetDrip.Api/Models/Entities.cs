@@ -69,6 +69,7 @@ public class OrderItem
     public int Qty { get; set; }
     public string? Note { get; set; }
     public string? NoteChoice { get; set; }
+    public string? SelectedOptionsJson { get; set; }
     public string? Image { get; set; }
 }
 

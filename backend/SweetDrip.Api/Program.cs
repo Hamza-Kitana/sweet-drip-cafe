@@ -95,6 +95,7 @@ using (var scope = app.Services.CreateScope())
     {
         await DbSeeder.SeedAsync(db);
         await DbSeeder.EnsureSiteImagesTableAsync(db);
+        await DbSeeder.EnsureOrderItemSelectedOptionsColumnAsync(db);
         var images = scope.ServiceProvider.GetRequiredService<SiteImageService>();
         var migrated = await images.MigrateEmbeddedImagesAsync(CancellationToken.None);
         if (migrated > 0)

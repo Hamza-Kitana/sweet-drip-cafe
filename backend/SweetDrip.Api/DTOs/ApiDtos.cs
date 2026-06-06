@@ -4,20 +4,22 @@ using System.Globalization;
 using System.Text.Json.Serialization;
 
 public record CategoryDto(string? Id, string Name, string Image, bool Visible);
+public record ProductOptionChoiceDto(string Label, decimal ExtraPrice);
+public record ProductOptionGroupDto(string Id, string Label, string SelectionType, bool Required, ProductOptionChoiceDto[] Choices);
 public record ProductNoteChoiceDto(string Label, decimal ExtraPrice);
-public record ProductDto(string? Id, string CategoryId, string Name, string Description, decimal Price, string Image, string Notes, ProductNoteChoiceDto[]? NoteChoices);
+public record ProductDto(string? Id, string CategoryId, string Name, string Description, decimal Price, string Image, string Notes, ProductOptionGroupDto[]? OptionGroups, ProductNoteChoiceDto[]? NoteChoices);
+public record SelectedOptionDto(string GroupId, string GroupLabel, string[] Choices);
+public record CartLineDto(string ProductId, string Name, decimal Price, int Qty, string? Note, string? NoteChoice, SelectedOptionDto[]? SelectedOptions, string? Image);
+public record OrderItemDto(string ProductId, string Name, decimal Price, int Qty, string? Note, string? NoteChoice, SelectedOptionDto[]? SelectedOptions, string? Image);
 public record OfferDto(string? Id, string Title, string Description, decimal Price, string Image, string[]? ProductIds, string? StartAt, string? EndAt, bool Active);
 public record BackgroundSlideDto(string Image, string Caption);
 public record HeroDto(string Tagline, string Image, string[] FloatingImages, string AboutImage, BackgroundSlideDto[] BackgroundSlides, string HeroBadge, string HeroTitleBefore, string HeroTitleAccent, string HeroTitleAfter);
 public record CatalogDto(CategoryDto[] Categories, ProductDto[] Products, OfferDto[] Offers, HeroDto Hero, decimal TaxRatePercent, bool OffersSectionVisible);
 
-public record CartLineDto(string ProductId, string Name, decimal Price, int Qty, string? Note, string? NoteChoice, string? Image);
 public record CheckoutCustomerDto(string Name, string Email, string Phone, string Date, string Time, string? Message);
 public record CheckoutRequestDto(CartLineDto[] Items, decimal Tip, CheckoutCustomerDto Customer);
 public record CheckoutResponseDto(string OrderId, string ClientSecret, string PaymentIntentId, decimal Subtotal, decimal Tip, decimal Tax, decimal TaxRatePercent, decimal Total);
-
 public record ConfirmPaymentRequestDto(string PaymentIntentId);
-public record OrderItemDto(string ProductId, string Name, decimal Price, int Qty, string? Note, string? NoteChoice, string? Image);
 public record OrderCustomerDto(string Name, string Email, string Phone, string Date, string Time, string? Message);
 public record OrderDto(string Id, string CreatedAt, OrderItemDto[] Items, OrderCustomerDto Customer, decimal Subtotal, decimal Tip, decimal Tax, decimal? TaxRate, decimal Total, string Status, string PaymentStatus, string? PaymentFailureReason, string? StripePaymentIntentId);
 
