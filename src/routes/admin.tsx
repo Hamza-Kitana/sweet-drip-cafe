@@ -98,6 +98,64 @@ function markSeenNewCatering(requests: LargeOrderRequest[], prev: Set<string>) {
   return next;
 }
 
+function isOrderPaid(o: Order) {
+  return o.paymentStatus === "paid";
+}
+
+function NewPulseDot({ className = "" }: { className?: string }) {
+  return (
+    <span className={`relative flex h-2 w-2 shrink-0 ${className}`}>
+      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-60" />
+      <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
+    </span>
+  );
+}
+
+function NewBadge() {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-red-500/25 bg-red-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-red-600">
+      <NewPulseDot />
+      New
+    </span>
+  );
+}
+
+function SidebarNewAlert({ count, label = "New" }: { count: number; label?: string }) {
+  if (count <= 0) return null;
+  return (
+    <span className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-red-500/30 bg-red-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-red-600 shadow-sm">
+      <NewPulseDot />
+      {label}
+      <span className="tabular-nums">{count}</span>
+    </span>
+  );
+}
+
+function NewOrdersAlertBanner({ count, onView }: { count: number; onView: () => void }) {
+  if (count <= 0) return null;
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-red-500/20 bg-gradient-to-r from-red-500/[0.08] via-red-500/[0.04] to-transparent px-4 py-4 shadow-sm">
+      <div className="flex items-center gap-3">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-red-500/10 ring-1 ring-red-500/20">
+          <NewPulseDot className="scale-125" />
+        </div>
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <NewBadge />
+            <span className="text-sm font-semibold text-primary">
+              {count} new order{count === 1 ? "" : "s"}
+            </span>
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">Paid orders waiting — open Orders to prepare them.</p>
+        </div>
+      </div>
+      <Button size="sm" className="rounded-full gradient-choco text-primary-foreground" onClick={onView}>
+        View orders
+      </Button>
+    </div>
+  );
+}
+
 function Dashboard() {
   const { setAdmin } = useAdmin();
   const isAdmin = useAdmin((s) => s.isAdmin);
@@ -105,7 +163,9 @@ function Dashboard() {
   const largeOrders = useShop((s) => s.largeOrders);
   const [seenOrderIds, setSeenOrderIds] = useState(() => loadSeenIds(SEEN_ORDERS_KEY));
   const [seenCateringIds, setSeenCateringIds] = useState(() => loadSeenIds(SEEN_CATERING_KEY));
-  const sidebarOrderBadge = orders.filter((o) => o.status === "new" && !seenOrderIds.has(o.id)).length;
+  const sidebarOrderBadge = orders.filter(
+    (o) => o.status === "new" && isOrderPaid(o) && !seenOrderIds.has(o.id),
+  ).length;
   const sidebarCateringBadge = largeOrders.filter((o) => o.status === "new" && !seenCateringIds.has(o.id)).length;
   const [tab, setTab] = useState<Tab>("overview");
   const lastSeenOrderId = useRef<string | null>(null);
@@ -199,16 +259,11 @@ function Dashboard() {
               {NAV.map(n => (
                 <button key={n.id} onClick={() => setTab(n.id)}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm transition ${tab === n.id ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm" : "text-[var(--footer-muted)] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"}`}>
-                  <n.icon className="w-4 h-4" /> {n.label}
-                  {n.id === "orders" && sidebarOrderBadge > 0 && (
-                    <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-[10px] font-bold text-primary">
-                      {sidebarOrderBadge}
-                    </span>
-                  )}
+                  <n.icon className="w-4 h-4 shrink-0" />
+                  <span className="flex-1 text-left">{n.label}</span>
+                  {n.id === "orders" && <SidebarNewAlert count={sidebarOrderBadge} />}
                   {n.id === "catering" && sidebarCateringBadge > 0 && (
-                    <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-[10px] font-bold text-primary">
-                      {sidebarCateringBadge}
-                    </span>
+                    <SidebarNewAlert count={sidebarCateringBadge} label="New" />
                   )}
                 </button>
               ))}
@@ -225,7 +280,12 @@ function Dashboard() {
           </div>
         </aside>
         <main className="min-w-0">
-          {tab === "overview"   && <Overview />}
+          {tab === "overview"   && (
+            <Overview
+              unseenNewOrderCount={sidebarOrderBadge}
+              onOpenOrders={() => setTab("orders")}
+            />
+          )}
           {tab === "orders"     && <OrdersPanel />}
           {tab === "catering"   && <CateringPanel />}
           {tab === "products"   && <ProductsPanel />}
@@ -578,7 +638,13 @@ function SalesSummaryBar({ orders }: { orders: Order[] }) {
   );
 }
 
-function Overview() {
+function Overview({
+  unseenNewOrderCount,
+  onOpenOrders,
+}: {
+  unseenNewOrderCount: number;
+  onOpenOrders: () => void;
+}) {
   const { orders, products, categories, offers } = useShop();
   const [range, setRange] = useState<AnalyticsRange>("today");
   const filtered = useMemo(() => filterOrdersByAnalyticsRange(orders, range), [orders, range]);
@@ -587,6 +653,8 @@ function Overview() {
 
   return (
     <div className="space-y-6">
+      <NewOrdersAlertBanner count={unseenNewOrderCount} onView={onOpenOrders} />
+
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-display text-primary">Welcome back</h1>
@@ -642,8 +710,13 @@ function Overview() {
             {filtered.slice(0, 8).map((o) => (
               <li key={o.id} className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
                 <div>
-                  <span className="font-medium">#{o.id} · {o.customer.name}</span>
-                  <span className="ml-2 text-xs capitalize text-muted-foreground">{o.status}</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium">#{o.id} · {o.customer.name}</span>
+                    {o.status === "new" && isOrderPaid(o) && <NewBadge />}
+                    {o.status !== "new" && (
+                      <span className="text-xs capitalize text-muted-foreground">{o.status}</span>
+                    )}
+                  </div>
                   <div className="text-xs text-muted-foreground">
                     {new Date(o.createdAt).toLocaleString()} · Pickup {o.customer.date} {o.customer.time}
                   </div>
@@ -673,10 +746,6 @@ function paymentBadge(o: Order) {
   );
 }
 
-function isOrderPaid(o: Order) {
-  return o.paymentStatus === "paid";
-}
-
 function OrdersPanel() {
   const { orders } = useShop();
   const confirm = useConfirm();
@@ -697,9 +766,14 @@ function OrdersPanel() {
     <Card>
       <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h2 className="font-display text-2xl text-primary">Orders</h2>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="font-display text-2xl text-primary">Orders</h2>
+            {newCount > 0 && paymentFilter === "paid" && <NewBadge />}
+          </div>
           {newCount > 0 && paymentFilter === "paid" && (
-            <p className="mt-1 text-sm text-accent">{newCount} new order(s) in this view</p>
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              <span className="font-medium text-red-600">{newCount} New</span> — ready to prepare
+            </p>
           )}
         </div>
         <div className="w-full sm:w-[240px]">
@@ -757,7 +831,10 @@ function OrdersPanel() {
             <div key={o.id} className={`border rounded-2xl p-4 ${o.status === "new" ? "border-accent/50 bg-accent/5" : ""} ${o.paymentStatus === "failed" || o.paymentStatus === "pending" ? "border-amber-400/40" : ""}`}>
               <div className="flex flex-wrap justify-between gap-2 items-start">
                 <div>
-                  <div className="font-semibold">#{o.id} · {o.customer.name}</div>
+                  <div className="flex flex-wrap items-center gap-2 font-semibold">
+                    <span>#{o.id} · {o.customer.name}</span>
+                    {o.status === "new" && isOrderPaid(o) && <NewBadge />}
+                  </div>
                   {paymentBadge(o)}
                   <div className="text-xs text-muted-foreground">
                     {new Date(o.createdAt).toLocaleString()} · {o.customer.phone} · {o.customer.email}
