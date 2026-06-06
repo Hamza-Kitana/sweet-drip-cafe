@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState, useEffect, useRef } from "react";
 import { useShop, useAdmin, fmt, initShopSync, groupCartItems, HERO_SLIDE_COUNT, FLOAT_IMAGE_COUNT, normalizeBackgroundSlides, normalizeFloatingImages, normalizeTaxRate, type HeroSettings, type Product, type Category, type Offer, type Order, type LargeOrderRequest } from "@/lib/store";
 import { AdminGuard } from "@/components/AdminGuard";
+import { ConfirmProvider, useConfirm } from "@/components/ConfirmDialog";
 import { ImageDropzone, ImageUploadButton } from "@/components/ImageDropzone";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,7 +46,13 @@ import {
 
 export const Route = createFileRoute("/admin")({
   head: () => ({ meta: [{ title: "Admin · Sweet Drip" }] }),
-  component: () => <AdminGuard><Dashboard /></AdminGuard>,
+  component: () => (
+    <AdminGuard>
+      <ConfirmProvider>
+        <Dashboard />
+      </ConfirmProvider>
+    </AdminGuard>
+  ),
 });
 
 type Tab = "overview" | "orders" | "catering" | "products" | "offers" | "site" | "settings";
@@ -597,6 +604,7 @@ function productMatchesQuery(product: Product, query: string) {
 
 function ProductsPanel() {
   const { products, categories } = useShop();
+  const confirm = useConfirm();
   const [editing, setEditing] = useState<Product | null>(null);
   const [open, setOpen] = useState(false);
   const [activeCategoryId, setActiveCategoryId] = useState("");
@@ -756,7 +764,20 @@ function ProductsPanel() {
                     size="sm"
                     variant="outline"
                     onClick={() => {
-                      if (confirm(`Delete "${cat.name}" and all its products?`)) void removeCategory(cat.id).catch((err) => toast.error(err instanceof Error ? err.message : "Delete failed"));
+                      void (async () => {
+                        const ok = await confirm({
+                          title: "Delete section?",
+                          description: `"${cat.name}" and all products inside it will be removed permanently.`,
+                          confirmLabel: "Delete section",
+                        });
+                        if (!ok) return;
+                        try {
+                          await removeCategory(cat.id);
+                          toast.success("Section deleted");
+                        } catch (err) {
+                          toast.error(err instanceof Error ? err.message : "Delete failed");
+                        }
+                      })();
                     }}
                   >
                     <Trash2 className="h-3 w-3" />
@@ -789,7 +810,20 @@ function ProductsPanel() {
                             size="sm"
                             variant="outline"
                             onClick={() => {
-                              if (confirm("Delete product?")) void removeProduct(p.id).catch((err) => toast.error(err instanceof Error ? err.message : "Delete failed"));
+                              void (async () => {
+                                const ok = await confirm({
+                                  title: "Delete product?",
+                                  description: `"${p.name}" will be removed from the menu permanently.`,
+                                  confirmLabel: "Delete product",
+                                });
+                                if (!ok) return;
+                                try {
+                                  await removeProduct(p.id);
+                                  toast.success("Product deleted");
+                                } catch (err) {
+                                  toast.error(err instanceof Error ? err.message : "Delete failed");
+                                }
+                              })();
                             }}
                           >
                             <Trash2 className="h-3 w-3" />
@@ -971,6 +1005,7 @@ function ProductDialog({ open, onOpenChange, editing, categories, defaultCategor
 
 function OffersPanel() {
   const { offers, offersSectionVisible } = useShop();
+  const confirm = useConfirm();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Offer | null>(null);
   const startNew = () => { setEditing(null); setOpen(true); };
@@ -1010,7 +1045,28 @@ function OffersPanel() {
               <span className="text-xs text-muted-foreground hidden sm:inline">{o.active ? "Live" : "Off"}</span>
               <Switch checked={o.active} onCheckedChange={(v) => void patchOffer(o.id, { active: v }).catch((err) => toast.error(err instanceof Error ? err.message : "Could not save"))} aria-label={`${o.active ? "Disable" : "Enable"} ${o.title}`} />
               <Button size="sm" variant="outline" onClick={() => { setEditing(o); setOpen(true); }}><Pencil className="w-3 h-3" /></Button>
-              <Button size="sm" variant="outline" onClick={() => { if (confirm("Delete?")) void removeOffer(o.id).catch((err) => toast.error(err instanceof Error ? err.message : "Delete failed")); }}><Trash2 className="w-3 h-3" /></Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  void (async () => {
+                    const ok = await confirm({
+                      title: "Delete offer?",
+                      description: `"${o.title}" will be removed permanently.`,
+                      confirmLabel: "Delete offer",
+                    });
+                    if (!ok) return;
+                    try {
+                      await removeOffer(o.id);
+                      toast.success("Offer deleted");
+                    } catch (err) {
+                      toast.error(err instanceof Error ? err.message : "Delete failed");
+                    }
+                  })();
+                }}
+              >
+                <Trash2 className="w-3 h-3" />
+              </Button>
             </div>
           </div>
         ))}
