@@ -52,6 +52,7 @@ builder.Services.AddScoped<PricingService>();
 builder.Services.AddScoped<CatalogMapper>();
 builder.Services.AddScoped<CatalogCacheService>();
 builder.Services.AddScoped<SiteImageService>();
+builder.Services.AddScoped<EmailNotificationService>();
 builder.Services.AddSingleton<JwtTokenService>();
 builder.Services.AddSingleton<StripePaymentService>();
 

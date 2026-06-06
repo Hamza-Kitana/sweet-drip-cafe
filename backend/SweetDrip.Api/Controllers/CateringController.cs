@@ -4,12 +4,16 @@ using Microsoft.EntityFrameworkCore;
 using SweetDrip.Api.Data;
 using SweetDrip.Api.DTOs;
 using SweetDrip.Api.Models;
+using SweetDrip.Api.Services;
 
 namespace SweetDrip.Api.Controllers;
 
 [ApiController]
 [Route("api/catering")]
-public class CateringController(SweetDripDbContext db) : ControllerBase
+public class CateringController(
+    SweetDripDbContext db,
+    EmailNotificationService email,
+    ILogger<CateringController> logger) : ControllerBase
 {
     [HttpPost]
     public async Task<ActionResult<CateringDto>> Create([FromBody] CateringRequestDto body, CancellationToken ct)
@@ -29,6 +33,16 @@ public class CateringController(SweetDripDbContext db) : ControllerBase
         };
         db.CateringRequests.Add(request);
         await db.SaveChangesAsync(ct);
+
+        try
+        {
+            await email.SendCateringRequestAsync(request, ct);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Catering request {RequestId} saved but notification email failed", request.Id);
+        }
+
         return Ok(Map(request));
     }
 
