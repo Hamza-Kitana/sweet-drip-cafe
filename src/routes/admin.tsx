@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState, useEffect, useRef } from "react";
-import { useShop, useAdmin, fmt, initShopSync, groupCartItems, HERO_SLIDE_COUNT, FLOAT_IMAGE_COUNT, normalizeBackgroundSlides, normalizeFloatingImages, normalizeTaxRate, parseTaxRateInput, type HeroSettings, type Product, type Category, type Offer, type Order, type LargeOrderRequest } from "@/lib/store";
+import { useShop, useAdmin, fmt, initShopSync, groupCartItems, HERO_SLIDE_COUNT, FLOAT_IMAGE_COUNT, normalizeBackgroundSlides, normalizeFloatingImages, normalizeTaxRate, parseTaxRateInput, normalizeOrderStatus, EDITABLE_ORDER_STATUSES, formatOrderStatusLabel, type HeroSettings, type Product, type Category, type Offer, type Order, type LargeOrderRequest } from "@/lib/store";
 import { AdminGuard } from "@/components/AdminGuard";
 import { ConfirmProvider, useConfirm } from "@/components/ConfirmDialog";
 import { ImageDropzone, ImageUploadButton } from "@/components/ImageDropzone";
@@ -250,9 +250,53 @@ function Dashboard() {
     { id: "settings", label: "Settings", icon: Settings },
   ];
   return (
-    <div className="section-inner py-8">
+    <div className="section-inner py-5 sm:py-8">
+      <div className="mb-4 lg:hidden">
+        <div className="mobile-scroll-x -mx-1 px-1">
+          {NAV.map((n) => (
+            <button
+              key={n.id}
+              type="button"
+              onClick={() => setTab(n.id)}
+              className={`admin-mobile-tab ${tab === n.id ? "is-active" : ""}`}
+            >
+              <n.icon className="h-4 w-4 shrink-0" />
+              {n.label}
+              {n.id === "orders" && sidebarOrderBadge > 0 && (
+                <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">
+                  {sidebarOrderBadge}
+                </span>
+              )}
+              {n.id === "catering" && sidebarCateringBadge > 0 && (
+                <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">
+                  {sidebarCateringBadge}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+        <div className="mt-3 flex items-center justify-between gap-2">
+          <Link to="/" className="text-xs text-[var(--footer-muted)] transition hover:text-[var(--footer-fg)]">
+            View site →
+          </Link>
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-sidebar-border bg-transparent text-[var(--footer-muted)] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            onClick={() => {
+              setAdminToken(null);
+              setAdmin(false);
+              toast.success("Signed out");
+            }}
+          >
+            <LogOut className="mr-1.5 h-4 w-4" />
+            Sign out
+          </Button>
+        </div>
+      </div>
+
       <div className="grid lg:grid-cols-[minmax(17rem,280px)_1fr] gap-6">
-        <aside className="lg:sticky lg:top-28 lg:max-h-[calc(100svh-8rem)] lg:overflow-y-auto">
+        <aside className="hidden lg:block lg:sticky lg:top-28 lg:max-h-[calc(100svh-8rem)] lg:overflow-y-auto">
           <div className="admin-sidebar rounded-3xl p-5 shadow-soft">
             <div className="mb-3 text-xs uppercase tracking-widest text-[var(--footer-muted)]">Admin</div>
             <nav className="space-y-1">
@@ -746,6 +790,38 @@ function paymentBadge(o: Order) {
   );
 }
 
+function OrderStatusControl({ order }: { order: Order }) {
+  const status = normalizeOrderStatus(order.status);
+  const canEdit = isOrderPaid(order) && status !== "awaiting_payment";
+  const selectValue = EDITABLE_ORDER_STATUSES.includes(status as (typeof EDITABLE_ORDER_STATUSES)[number])
+    ? status
+    : "new";
+
+  if (!canEdit) {
+    const label = !isOrderPaid(order) ? "Awaiting payment" : formatOrderStatusLabel(status);
+    return (
+      <span className="mt-1 inline-flex h-9 min-w-[9rem] items-center justify-center rounded-md border border-amber-400/35 bg-amber-500/10 px-3 text-sm font-medium text-amber-800">
+        {label}
+      </span>
+    );
+  }
+
+  return (
+    <Select value={selectValue} onValueChange={(v) => void patchOrderStatus(order.id, v as Order["status"])}>
+      <SelectTrigger className="mt-1 w-36 capitalize">
+        <SelectValue placeholder="Status" />
+      </SelectTrigger>
+      <SelectContent>
+        {EDITABLE_ORDER_STATUSES.map((s) => (
+          <SelectItem key={s} value={s} className="capitalize">
+            {formatOrderStatusLabel(s)}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
 function OrdersPanel() {
   const { orders } = useShop();
   const confirm = useConfirm();
@@ -846,12 +922,7 @@ function OrdersPanel() {
                 </div>
                 <div className="flex flex-wrap items-start justify-end gap-2">
                   <div className="font-display text-xl">{fmt(o.total)}</div>
-                  <Select value={o.status} onValueChange={(v) => void patchOrderStatus(o.id, v as Order["status"])}>
-                    <SelectTrigger className="mt-1 w-36"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {["new","preparing","ready","done","cancelled"].map(s => <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <OrderStatusControl order={o} />
                   <Button
                     size="sm"
                     variant="outline"

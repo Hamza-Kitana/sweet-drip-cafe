@@ -35,3 +35,5 @@ public record TaxRateSettingDto(decimal TaxRatePercent);
 public record UpdateTaxRateDto(
     [property: JsonPropertyName("taxRatePercent")] decimal TaxRatePercent);
 public record UpdateOffersVisibilityDto(bool Visible);
+public record UploadMediaDto(string DataUrl, string? FileName);
+public record MediaUploadDto(string Id, string Url);

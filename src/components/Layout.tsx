@@ -25,6 +25,31 @@ function TikTokIcon({ className = "" }: { className?: string }) {
   );
 }
 
+const FOOTER_SOCIAL = [
+  { href: "https://www.instagram.com/sweetdrip_desserts/", label: "Instagram", Icon: Instagram },
+  { href: "https://www.facebook.com/profile.php?id=61557068464580", label: "Facebook", Icon: Facebook },
+  { href: "https://www.tiktok.com/@sweet.drip.cafe", label: "TikTok", Icon: TikTokIcon },
+] as const;
+
+function FooterSocialLinks({ className = "" }: { className?: string }) {
+  return (
+    <div className={`flex items-center gap-2 ${className}`}>
+      {FOOTER_SOCIAL.map(({ href, label, Icon }) => (
+        <a
+          key={href}
+          href={href}
+          target="_blank"
+          rel="noreferrer"
+          aria-label={label}
+          className="flex h-11 w-11 items-center justify-center rounded-full border border-[oklch(0.32_0.08_40/0.2)] bg-[oklch(0.32_0.08_40/0.08)] text-[var(--footer-fg)] transition hover:border-[oklch(0.32_0.08_40/0.4)] hover:bg-[oklch(0.32_0.08_40/0.18)] hover:text-[var(--footer-heading)]"
+        >
+          <Icon className="h-4 w-4" />
+        </a>
+      ))}
+    </div>
+  );
+}
+
 function PageLoader() {
   const [show, setShow] = useState(true);
   useEffect(() => {
@@ -169,7 +194,7 @@ export function Layout() {
               <button
                 type="button"
                 onClick={() => setDrawerOpen(true)}
-                className="relative rounded-full p-2.5 transition hover:bg-accent/40"
+                className="relative rounded-full p-3 transition hover:bg-accent/40"
                 aria-label="Open cart"
               >
                 <ShoppingBag className="w-5 h-5" />
@@ -179,7 +204,7 @@ export function Layout() {
                   </span>
                 )}
               </button>
-              <button onClick={() => setOpen(true)} className="md:hidden p-2.5 rounded-full hover:bg-accent/40">
+              <button onClick={() => setOpen(true)} className="md:hidden p-3 rounded-full hover:bg-accent/40" aria-label="Open menu">
                 <MenuIcon className="w-5 h-5" />
               </button>
             </div>
@@ -204,7 +229,7 @@ export function Layout() {
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 26 }}
-              className="fixed inset-y-0 right-0 z-[60] w-[min(100%,20rem)] bg-card shadow-glow p-6 pt-[max(1.5rem,env(safe-area-inset-top))] flex flex-col gap-1 md:hidden"
+              className="fixed inset-y-0 right-0 z-[60] w-[min(100%,20rem)] bg-card shadow-glow p-6 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] flex flex-col gap-1 md:hidden"
             >
               <button type="button" onClick={() => setOpen(false)} className="self-end p-2 -mr-2" aria-label="Close">
                 <X />
@@ -239,20 +264,64 @@ export function Layout() {
           aria-hidden
         />
 
-        <div className="section-inner relative py-14 md:py-16 lg:py-20">
-          <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-4 lg:gap-x-10 lg:gap-y-12">
-            <div className="flex flex-col items-center text-center lg:items-start lg:text-left">
+        <div className="section-inner relative py-8 md:py-16 lg:py-20">
+          <div className="flex flex-col gap-8 lg:grid lg:grid-cols-4 lg:items-start lg:gap-x-10 lg:gap-y-12">
+            <div className="flex flex-col items-center gap-2 text-center lg:items-start lg:text-left">
               <Link to="/" className="inline-block transition hover:opacity-90">
                 <img
                   src={logo}
                   alt="Sweet Drip"
-                  className="h-24 w-auto drop-shadow-md md:h-32 lg:h-36"
+                  className="h-16 w-auto drop-shadow-md md:h-24 lg:h-36"
                 />
               </Link>
+              <p className="max-w-xs text-sm leading-snug text-[var(--footer-muted)]">
+                Dessert cafe in Chicago — order online for pickup.
+              </p>
             </div>
 
-            <div className="grid grid-cols-1 gap-10 sm:grid-cols-3 lg:col-span-3 lg:gap-8">
-              <div className="flex flex-col items-center text-center sm:items-start sm:text-left">
+            <div className="grid grid-cols-2 gap-2 lg:hidden">
+              <a href="tel:+17739664332" className="footer-tap-card">
+                <span className="footer-tap-card-label">
+                  <Phone className="h-4 w-4 shrink-0" aria-hidden />
+                  Call us
+                </span>
+                <span className="footer-tap-card-detail">(773) 966-4332</span>
+              </a>
+              <a
+                href={CAFE_MAPS_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="footer-tap-card"
+              >
+                <span className="footer-tap-card-label">
+                  <MapPin className="h-4 w-4 shrink-0" aria-hidden />
+                  Directions
+                </span>
+                <span className="footer-tap-card-detail">Open in Maps</span>
+              </a>
+              <div className="footer-tap-card col-span-2">
+                <span className="footer-tap-card-label">
+                  <Clock className="h-4 w-4 shrink-0" aria-hidden />
+                  Hours
+                </span>
+                <span className="footer-tap-card-detail">{CAFE_HOURS_FOOTER}</span>
+              </div>
+              <a
+                href={CAFE_MAPS_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="footer-tap-card col-span-2"
+              >
+                <span className="footer-tap-card-label">
+                  <MapPin className="h-4 w-4 shrink-0" aria-hidden />
+                  Address
+                </span>
+                <span className="footer-tap-card-detail">{CAFE_ADDRESS}</span>
+              </a>
+            </div>
+
+            <div className="hidden lg:col-span-3 lg:grid lg:grid-cols-3 lg:gap-8">
+              <div className="flex flex-col">
                 <p className="footer-heading">Visit</p>
                 <ul className="w-full space-y-3 text-sm">
                   <li>
@@ -287,7 +356,7 @@ export function Layout() {
                 </ul>
               </div>
 
-              <div className="flex flex-col items-center text-center sm:items-start sm:text-left">
+              <div className="flex flex-col">
                 <p className="footer-heading">Explore</p>
                 <ul className="w-full space-y-2.5 text-sm">
                   {NAV.map((n) => (
@@ -300,7 +369,7 @@ export function Layout() {
                 </ul>
               </div>
 
-              <div className="flex flex-col items-center text-center sm:items-start sm:text-left">
+              <div className="flex flex-col">
                 <p className="footer-heading">Legal</p>
                 <ul className="w-full space-y-2.5 text-sm">
                   <li>
@@ -314,38 +383,46 @@ export function Layout() {
                     </Link>
                   </li>
                 </ul>
-                <div className="mt-6 flex items-center justify-center gap-2 sm:justify-start">
-                  {[
-                    { href: "https://www.instagram.com/sweetdrip_desserts/", label: "Instagram", Icon: Instagram },
-                    { href: "https://www.facebook.com/profile.php?id=61557068464580", label: "Facebook", Icon: Facebook },
-                    { href: "https://www.tiktok.com/@sweet.drip.cafe", label: "TikTok", Icon: TikTokIcon },
-                  ].map(({ href, label, Icon }) => (
-                    <a
-                      key={href}
-                      href={href}
-                      target="_blank"
-                      rel="noreferrer"
-                      aria-label={label}
-                      className="flex h-10 w-10 items-center justify-center rounded-full border border-[oklch(0.32_0.08_40/0.2)] bg-[oklch(0.32_0.08_40/0.08)] text-[var(--footer-fg)] transition hover:border-[oklch(0.32_0.08_40/0.4)] hover:bg-[oklch(0.32_0.08_40/0.18)] hover:text-[var(--footer-heading)]"
-                    >
-                      <Icon className="h-4 w-4" />
-                    </a>
-                  ))}
-                </div>
+                <FooterSocialLinks className="mt-6 justify-start" />
               </div>
+            </div>
+
+            <div className="flex flex-col gap-6 lg:hidden">
+              <div>
+                <p className="footer-heading text-center">Explore</p>
+                <nav className="footer-link-grid" aria-label="Site pages">
+                  {NAV.map((n) => (
+                    <Link key={n.to} to={n.to} className="footer-link-pill">
+                      {n.label}
+                    </Link>
+                  ))}
+                </nav>
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-sm">
+                <Link to="/privacy" className="footer-link inline-flex min-h-[2.75rem] items-center px-2">
+                  Privacy
+                </Link>
+                <span className="text-[var(--footer-muted)]" aria-hidden>
+                  ·
+                </span>
+                <Link to="/terms" className="footer-link inline-flex min-h-[2.75rem] items-center px-2">
+                  Terms
+                </Link>
+              </div>
+              <FooterSocialLinks className="justify-center" />
             </div>
           </div>
         </div>
 
         <div className="site-footer-bar">
-          <div className="section-inner relative flex flex-col items-center gap-3 py-5 sm:min-h-[3.25rem] sm:justify-center">
-            <span className="w-full text-center text-xs text-white/95">
-              © {new Date().getFullYear()} Sweet Drip Dessert Cafe. All rights reserved.
+          <div className="section-inner flex flex-row items-center justify-between gap-3 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+            <span className="min-w-0 text-[11px] leading-snug text-white/95 sm:text-xs">
+              © {new Date().getFullYear()} Sweet Drip Dessert Cafe
             </span>
             <button
               type="button"
               onClick={() => setAdminOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-full border border-[oklch(0.32_0.08_40/0.2)] px-3 py-1.5 text-xs text-[var(--footer-muted)] transition hover:border-[oklch(0.32_0.08_40/0.35)] hover:text-[var(--footer-fg)] sm:absolute sm:right-0 sm:top-1/2 sm:-translate-y-1/2"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[oklch(0.32_0.08_40/0.2)] px-3 py-2 text-xs text-[var(--footer-muted)] transition hover:border-[oklch(0.32_0.08_40/0.35)] hover:text-[var(--footer-fg)]"
             >
               <Lock className="h-3 w-3" /> {isAdmin ? "Admin" : "Staff"}
             </button>

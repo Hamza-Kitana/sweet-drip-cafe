@@ -13,7 +13,7 @@ namespace SweetDrip.Api.Controllers;
 [Authorize]
 [ApiController]
 [Route("api/admin")]
-public class AdminController(SweetDripDbContext db, CatalogCacheService catalogCache) : ControllerBase
+public class AdminController(SweetDripDbContext db, CatalogCacheService catalogCache, SiteImageService siteImages) : ControllerBase
 {
     private static readonly JsonSerializerOptions JsonOpts = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
@@ -74,6 +74,30 @@ public class AdminController(SweetDripDbContext db, CatalogCacheService catalogC
         hero.HeroTitleAfter = body.HeroTitleAfter;
         await db.SaveChangesAsync(ct);
         InvalidateCatalogCache();
+        return Ok();
+    }
+
+    [HttpPost("media")]
+    public async Task<ActionResult<MediaUploadDto>> UploadMedia([FromBody] UploadMediaDto body, CancellationToken ct)
+    {
+        if (body == null || string.IsNullOrWhiteSpace(body.DataUrl))
+            return BadRequest(new { error = "Image data is required" });
+
+        try
+        {
+            var (id, url) = await siteImages.SaveDataUrlAsync(body.DataUrl, body.FileName, ct);
+            return Ok(new MediaUploadDto(id, url));
+        }
+        catch (InvalidOperationException)
+        {
+            return BadRequest(new { error = "Invalid image data" });
+        }
+    }
+
+    [HttpDelete("media/{id}")]
+    public async Task<IActionResult> DeleteMedia(string id, CancellationToken ct)
+    {
+        if (!await siteImages.DeleteAsync(id, ct)) return NotFound();
         return Ok();
     }
 

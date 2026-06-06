@@ -14,6 +14,7 @@ public class SweetDripDbContext(DbContextOptions<SweetDripDbContext> options) : 
     public DbSet<AdminUser> AdminUsers => Set<AdminUser>();
     public DbSet<AppSetting> AppSettings => Set<AppSetting>();
     public DbSet<HeroContent> HeroContents => Set<HeroContent>();
+    public DbSet<SiteImage> SiteImages => Set<SiteImage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -71,5 +72,13 @@ public class SweetDripDbContext(DbContextOptions<SweetDripDbContext> options) : 
         modelBuilder.Entity<AdminUser>(e => e.HasKey(x => x.Id));
         modelBuilder.Entity<AppSetting>(e => e.HasKey(x => x.Key));
         modelBuilder.Entity<HeroContent>(e => e.HasKey(x => x.Id));
+        modelBuilder.Entity<SiteImage>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasMaxLength(64);
+            e.Property(x => x.FileName).HasMaxLength(260);
+            e.Property(x => x.ContentType).HasMaxLength(120);
+            e.Property(x => x.Data).HasColumnType("varbinary(max)");
+        });
     }
 }

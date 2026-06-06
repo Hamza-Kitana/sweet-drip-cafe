@@ -1,6 +1,6 @@
 import { isApiMode } from "./client";
 import * as api from "./backend";
-import { SHOP_SYNC_CHANNEL, useShop, type Order } from "@/lib/store";
+import { SHOP_SYNC_CHANNEL, useShop, type Order, normalizeOrderStatus } from "@/lib/store";
 
 function notifyCatalogUpdated() {
   if (typeof window === "undefined") return;
@@ -59,7 +59,7 @@ export async function refreshAdminDataFromApi() {
 function mapApiOrder(o: Order): Order {
   return {
     ...o,
-    status: o.status as Order["status"],
+    status: normalizeOrderStatus(o.status),
     paymentStatus: o.paymentStatus,
   };
 }

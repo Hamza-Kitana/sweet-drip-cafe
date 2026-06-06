@@ -100,6 +100,22 @@ public static class DbSeeder
         await db.SaveChangesAsync();
     }
 
+    public static async Task EnsureSiteImagesTableAsync(SweetDripDbContext db)
+    {
+        await db.Database.ExecuteSqlRawAsync("""
+            IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'SiteImages')
+            BEGIN
+                CREATE TABLE SiteImages (
+                    Id          NVARCHAR(64)   NOT NULL PRIMARY KEY,
+                    FileName    NVARCHAR(260)  NOT NULL,
+                    ContentType NVARCHAR(120)  NOT NULL,
+                    Data        VARBINARY(MAX) NOT NULL,
+                    CreatedAt   DATETIME2      NOT NULL
+                );
+            END
+            """);
+    }
+
     private static Product Product(string id, string catId, string name, string desc, decimal price, string image, string notes, string[] choices) =>
         new()
         {

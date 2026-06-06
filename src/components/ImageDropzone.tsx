@@ -3,6 +3,8 @@ import { ImagePlus, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { isApiMode } from "@/lib/api/client";
+import { removeStoredMedia, uploadSiteImage } from "@/lib/api/media";
 
 const MAX_BYTES = 3 * 1024 * 1024;
 
@@ -46,10 +48,22 @@ export function ImageDropzone({
   const pickFile = async (file: File | undefined) => {
     if (!file) return;
     try {
-      onChange(await readImageAsDataUrl(file));
+      const dataUrl = await readImageAsDataUrl(file);
+      if (isApiMode) {
+        if (value) await removeStoredMedia(value);
+        const uploaded = await uploadSiteImage(dataUrl, file.name);
+        onChange(uploaded.url);
+      } else {
+        onChange(dataUrl);
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Upload failed");
     }
+  };
+
+  const clearImage = async () => {
+    if (isApiMode && value) await removeStoredMedia(value);
+    onClear?.();
   };
 
   const onDrop = (event: React.DragEvent) => {
@@ -101,7 +115,7 @@ export function ImageDropzone({
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onClear();
+                  void clearImage();
                 }}
                 className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-background/90 text-primary shadow-sm transition hover:bg-destructive hover:text-destructive-foreground"
                 aria-label="Remove image"
@@ -138,7 +152,13 @@ export function ImageUploadButton({
   const pickFile = async (file: File | undefined) => {
     if (!file) return;
     try {
-      onUpload(await readImageAsDataUrl(file));
+      const dataUrl = await readImageAsDataUrl(file);
+      if (isApiMode) {
+        const uploaded = await uploadSiteImage(dataUrl, file.name);
+        onUpload(uploaded.url);
+      } else {
+        onUpload(dataUrl);
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Upload failed");
     }

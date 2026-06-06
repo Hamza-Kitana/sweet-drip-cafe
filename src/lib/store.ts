@@ -65,6 +65,32 @@ export type Order = {
   stripePaymentIntentId?: string;
 };
 
+export const EDITABLE_ORDER_STATUSES = [
+  "new",
+  "preparing",
+  "ready",
+  "done",
+  "cancelled",
+] as const satisfies readonly Order["status"][];
+
+export function normalizeOrderStatus(status: unknown): Order["status"] {
+  const raw = String(status ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+  if (raw === "awaitingpayment" || raw === "awaiting_payment") return "awaiting_payment";
+  if (raw === "new") return "new";
+  if (raw === "preparing") return "preparing";
+  if (raw === "ready") return "ready";
+  if (raw === "done") return "done";
+  if (raw === "cancelled" || raw === "canceled") return "cancelled";
+  return "new";
+}
+
+export function formatOrderStatusLabel(status: Order["status"]) {
+  return status.replace(/_/g, " ");
+}
+
 export type LargeOrderRequest = {
   id: string;
   createdAt: string;
@@ -452,6 +478,7 @@ export const useShop = create<ShopState>()(
         const saved = persisted as Partial<ShopState>;
         const orders = (saved.orders ?? current.orders ?? []).map((o) => ({
           ...o,
+          status: normalizeOrderStatus(o.status),
           tax: o.tax ?? Math.max(0, +(o.total - o.subtotal - o.tip).toFixed(2)),
         }));
 

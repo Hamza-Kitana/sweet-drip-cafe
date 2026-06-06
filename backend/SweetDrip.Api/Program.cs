@@ -51,6 +51,7 @@ builder.Services.AddResponseCaching();
 builder.Services.AddScoped<PricingService>();
 builder.Services.AddScoped<CatalogMapper>();
 builder.Services.AddScoped<CatalogCacheService>();
+builder.Services.AddScoped<SiteImageService>();
 builder.Services.AddSingleton<JwtTokenService>();
 builder.Services.AddSingleton<StripePaymentService>();
 
@@ -91,6 +92,14 @@ using (var scope = app.Services.CreateScope())
     try
     {
         await DbSeeder.SeedAsync(db);
+        await DbSeeder.EnsureSiteImagesTableAsync(db);
+        var images = scope.ServiceProvider.GetRequiredService<SiteImageService>();
+        var migrated = await images.MigrateEmbeddedImagesAsync(CancellationToken.None);
+        if (migrated > 0)
+        {
+            scope.ServiceProvider.GetRequiredService<CatalogCacheService>().Invalidate();
+            logger.LogInformation("Migrated {Count} embedded site image(s) into the database.", migrated);
+        }
     }
     catch (SqlException ex)
     {

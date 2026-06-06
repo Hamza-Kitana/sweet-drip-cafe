@@ -113,6 +113,14 @@ CREATE TABLE HeroContents (
     HeroTitleAfter       NVARCHAR(200) NOT NULL DEFAULT ''
 );
 
+CREATE TABLE SiteImages (
+    Id          NVARCHAR(64)   NOT NULL PRIMARY KEY,
+    FileName    NVARCHAR(260)  NOT NULL,
+    ContentType NVARCHAR(120)  NOT NULL,
+    Data        VARBINARY(MAX) NOT NULL,
+    CreatedAt   DATETIME2      NOT NULL
+);
+
 -- Status enums (reference):
 -- Order.Status: 0=AwaitingPayment, 1=New, 2=Preparing, 3=Ready, 4=Done, 5=Cancelled
 -- Order.PaymentStatus: 0=Pending, 1=Paid, 2=Failed

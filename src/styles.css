@@ -206,7 +206,7 @@
     }
   }
   .section-pad {
-    padding-block: 3.5rem;
+    padding-block: 2.75rem;
   }
   @media (min-width: 768px) {
     .section-pad { padding-block: 5rem; }
@@ -340,6 +340,88 @@
     background: oklch(0.32 0.08 40 / 0.1);
     color: var(--footer-fg);
     transition: color 0.2s ease, background 0.2s ease;
+  }
+  .footer-tap-card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.2rem;
+    min-height: 2.75rem;
+    padding: 0.875rem 1rem;
+    border-radius: 1rem;
+    border: 1px solid oklch(0.32 0.08 40 / 0.14);
+    background: oklch(1 0 0 / 0.38);
+    color: var(--footer-fg);
+    text-align: left;
+    transition: border-color 0.2s ease, background 0.2s ease, transform 0.15s ease;
+  }
+  a.footer-tap-card:hover {
+    border-color: oklch(0.32 0.08 40 / 0.28);
+    background: oklch(1 0 0 / 0.52);
+    color: var(--footer-heading);
+  }
+  a.footer-tap-card:active {
+    transform: scale(0.98);
+  }
+  .footer-tap-card-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--footer-heading);
+  }
+  .footer-tap-card-detail {
+    font-size: 0.75rem;
+    line-height: 1.35;
+    color: var(--footer-muted);
+  }
+  .footer-link-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+  .footer-link-pill {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.75rem;
+    padding: 0.625rem 0.75rem;
+    border-radius: 9999px;
+    border: 1px solid oklch(0.32 0.08 40 / 0.14);
+    background: oklch(1 0 0 / 0.35);
+    color: var(--footer-fg);
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-align: center;
+    transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+  }
+  .footer-link-pill:hover {
+    border-color: oklch(0.32 0.08 40 / 0.28);
+    background: oklch(1 0 0 / 0.52);
+    color: var(--footer-heading);
+  }
+  .admin-mobile-tab {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 2.75rem;
+    padding: 0.625rem 1rem;
+    border-radius: 9999px;
+    border: 1px solid oklch(0.32 0.08 40 / 0.14);
+    background: oklch(1 0 0 / 0.35);
+    color: var(--footer-muted);
+    font-size: 0.875rem;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+  }
+  .admin-mobile-tab.is-active {
+    border-color: oklch(0.62 0.12 348 / 0.35);
+    background: oklch(0.62 0.12 348 / 0.14);
+    color: var(--footer-heading);
+    box-shadow: var(--shadow-soft);
   }
   .overlay-pink-card {
     background: linear-gradient(

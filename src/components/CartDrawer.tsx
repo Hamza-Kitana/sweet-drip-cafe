@@ -32,7 +32,7 @@ export function CartDrawer() {
         overlayClassName="z-[60] pointer-events-none bg-[oklch(0.62_0.12_350/0.28)] backdrop-blur-[3px]"
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
-        className="z-[70] inset-y-auto bottom-4 right-4 top-[calc(var(--site-header-height)+1rem)] flex h-auto max-h-[calc(100svh-var(--site-header-height)-2rem)] w-[min(calc(100vw-2rem),19rem)] flex-col gap-0 overflow-hidden rounded-3xl border border-[oklch(0.72_0.09_350/0.35)] bg-[oklch(0.99_0.02_350/0.58)] p-0 shadow-[0_16px_48px_oklch(0.55_0.12_350/0.22),0_4px_20px_oklch(0_0_0/0.1)] backdrop-blur-xl sm:right-5"
+        className="z-[70] inset-y-auto bottom-3 right-3 top-[calc(var(--site-header-height)+0.75rem)] flex h-auto max-h-[calc(100svh-var(--site-header-height)-1.5rem)] w-[min(calc(100vw-1.5rem),19rem)] flex-col gap-0 overflow-hidden rounded-3xl border border-[oklch(0.72_0.09_350/0.35)] bg-[oklch(0.99_0.02_350/0.58)] p-0 shadow-[0_16px_48px_oklch(0.55_0.12_350/0.22),0_4px_20px_oklch(0_0_0/0.1)] backdrop-blur-xl sm:bottom-4 sm:right-5 sm:top-[calc(var(--site-header-height)+1rem)] sm:max-h-[calc(100svh-var(--site-header-height)-2rem)] sm:w-[min(calc(100vw-2rem),19rem)]"
       >
         <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
           <div className="absolute -right-8 top-12 h-28 w-28 rounded-full bg-[oklch(0.84_0.11_350/0.12)] blur-3xl" />

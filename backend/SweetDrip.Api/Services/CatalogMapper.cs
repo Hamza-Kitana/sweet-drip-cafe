@@ -51,8 +51,14 @@ public class CatalogMapper(SweetDripDbContext db)
             o.Items.Select(i => new OrderItemDto(i.ProductId, i.Name, i.Price, i.Qty, i.Note, i.NoteChoice, i.Image)).ToArray(),
             new OrderCustomerDto(o.CustomerName, o.CustomerEmail, o.CustomerPhone, o.PickupDate, o.PickupTime, o.Message),
             o.Subtotal, o.Tip, o.Tax, o.TaxRate, o.Total,
-            o.Status.ToString().ToLowerInvariant(),
-            o.PaymentStatus.ToString().ToLowerInvariant(),
+            MapOrderStatusForClient(o.Status),
+            o.PaymentStatus switch
+            {
+                PaymentStatus.Pending => "pending",
+                PaymentStatus.Paid => "paid",
+                PaymentStatus.Failed => "failed",
+                _ => "pending",
+            },
             o.PaymentFailureReason, o.StripePaymentIntentId);
 
     public static string MapOrderStatusForClient(OrderStatus status) => status switch
