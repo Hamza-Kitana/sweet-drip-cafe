@@ -39,6 +39,8 @@ import {
   removeOrder,
   removeCatering,
   removeProduct,
+  loadAdminProfileFromApi,
+  updateAdminCredentialsToApi,
   saveCategory,
   saveHeroToApi,
   saveOffer,
@@ -112,7 +114,12 @@ function Dashboard() {
     initShopSync();
     if (isApiMode) {
       void hydrateShopFromApi({ broadcast: false });
-      if (isAdmin) void refreshAdminDataFromApi();
+      if (isAdmin) {
+        void refreshAdminDataFromApi();
+        void loadAdminProfileFromApi().catch(() => {
+          /* profile load optional */
+        });
+      }
     }
   }, [isAdmin]);
 
@@ -242,6 +249,17 @@ function SettingsPanel() {
   });
 
   useEffect(() => {
+    if (!isApiMode) return;
+    void loadAdminProfileFromApi()
+      .then(() => {
+        setAccount((a) => ({ ...a, username: useAdmin.getState().username }));
+      })
+      .catch(() => {
+        /* keep cached username */
+      });
+  }, []);
+
+  useEffect(() => {
     setAccount((a) => ({ ...a, username }));
   }, [username]);
 
@@ -294,7 +312,7 @@ function SettingsPanel() {
           <h2 className="font-display text-2xl text-primary">Admin login</h2>
         </div>
         <p className="mb-4 text-sm text-muted-foreground">
-          Change dashboard username and password. Current password is required to save changes.
+          Change your dashboard username and/or password. Current password is always required. Leave new password blank to keep the same password.
         </p>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Username">
@@ -312,40 +330,57 @@ function SettingsPanel() {
               autoComplete="current-password"
             />
           </Field>
-          <Field label="New password *">
+          <Field label="New password (optional)">
             <Input
               type="password"
               value={account.password}
               onChange={(e) => setAccount({ ...account, password: e.target.value })}
               autoComplete="new-password"
+              placeholder="Leave blank to keep current"
             />
           </Field>
-          <Field label="Confirm password *">
+          <Field label="Confirm new password">
             <Input
               type="password"
               value={account.confirm}
               onChange={(e) => setAccount({ ...account, confirm: e.target.value })}
               autoComplete="new-password"
+              placeholder="Only if changing password"
             />
           </Field>
         </div>
         <Button
           className="mt-4 rounded-full"
           onClick={async () => {
-            if (account.password !== account.confirm) {
-              toast.error("New passwords do not match");
+            const nextUsername = account.username.trim();
+            if (!nextUsername) {
+              toast.error("Username is required");
               return;
+            }
+            if (!account.currentPassword.trim()) {
+              toast.error("Enter your current password");
+              return;
+            }
+            if (account.password || account.confirm) {
+              if (account.password.length < 6) {
+                toast.error("New password must be at least 6 characters");
+                return;
+              }
+              if (account.password !== account.confirm) {
+                toast.error("New passwords do not match");
+                return;
+              }
             }
             try {
               if (isApiMode) {
-                await api.updateAdminCredentials({
-                  username: account.username,
+                await updateAdminCredentialsToApi({
+                  username: nextUsername,
                   password: account.password,
                   currentPassword: account.currentPassword,
                 });
               } else {
                 const result = updateCredentials({
-                  username: account.username,
+                  username: nextUsername,
                   password: account.password,
                   currentPassword: account.currentPassword,
                 });
@@ -355,7 +390,7 @@ function SettingsPanel() {
                 }
               }
               toast.success("Admin login updated");
-              setAccount({ username: account.username, password: "", confirm: "", currentPassword: "" });
+              setAccount({ username: nextUsername, password: "", confirm: "", currentPassword: "" });
             } catch (err) {
               toast.error(err instanceof Error ? err.message : "Could not update credentials");
             }

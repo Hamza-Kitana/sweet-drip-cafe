@@ -83,6 +83,7 @@ type AdminState = {
   username: string;
   password: string;
   setAdmin: (v: boolean) => void;
+  setUsername: (username: string) => void;
   login: (username: string, password: string) => boolean;
   updateCredentials: (input: {
     username: string;
@@ -478,6 +479,7 @@ export const useAdmin = create<AdminState>()(
       username: DEFAULT_ADMIN_USERNAME,
       password: DEFAULT_ADMIN_PASSWORD,
       setAdmin: (v) => set({ isAdmin: v }),
+      setUsername: (username) => set({ username: username.trim() || DEFAULT_ADMIN_USERNAME }),
       login: (username, password) => {
         const state = get();
         if (username === state.username && password === state.password) {
@@ -496,10 +498,13 @@ export const useAdmin = create<AdminState>()(
         if (!nextUsername) {
           return { ok: false, error: "Username is required" };
         }
-        if (nextPassword.length < 6) {
+        if (nextPassword && nextPassword.length < 6) {
           return { ok: false, error: "Password must be at least 6 characters" };
         }
-        set({ username: nextUsername, password: nextPassword });
+        set({
+          username: nextUsername,
+          ...(nextPassword ? { password: nextPassword } : {}),
+        });
         return { ok: true };
       },
     }),

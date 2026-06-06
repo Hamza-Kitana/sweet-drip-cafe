@@ -1,8 +1,24 @@
 import type { Category, HeroSettings, Offer, Order, Product } from "@/lib/store";
-import { useShop } from "@/lib/store";
+import { useAdmin, useShop } from "@/lib/store";
 import * as api from "./backend";
 import { isApiMode } from "./client";
 import { hydrateShopFromApi, refreshAdminDataFromApi } from "./hydrate";
+
+export async function loadAdminProfileFromApi() {
+  if (!isApiMode) return;
+  const profile = await api.fetchAdminProfile();
+  useAdmin.getState().setUsername(profile.username);
+}
+
+export async function updateAdminCredentialsToApi(input: {
+  username: string;
+  password: string;
+  currentPassword: string;
+}) {
+  if (!isApiMode) return;
+  const result = await api.updateAdminCredentials(input);
+  useAdmin.getState().setUsername(result.username);
+}
 
 export async function saveTaxRateToApi(taxRatePercent: number) {
   if (!isApiMode) {

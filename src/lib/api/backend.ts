@@ -27,12 +27,16 @@ export async function loginAdmin(username: string, password: string) {
   });
 }
 
+export async function fetchAdminProfile() {
+  return apiFetch<{ username: string }>("/api/auth/me");
+}
+
 export async function updateAdminCredentials(input: {
   username: string;
   password: string;
   currentPassword: string;
 }) {
-  return apiFetch<{ ok: boolean }>("/api/auth/credentials", {
+  return apiFetch<{ ok: boolean; username: string }>("/api/auth/credentials", {
     method: "PUT",
     body: JSON.stringify(input),
   });

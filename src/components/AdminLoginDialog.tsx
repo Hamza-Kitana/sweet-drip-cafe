@@ -10,9 +10,10 @@ import { useAdmin } from "@/lib/store";
 import { isApiMode, setAdminToken } from "@/lib/api/client";
 import * as api from "@/lib/api/backend";
 import { refreshAdminDataFromApi } from "@/lib/api/hydrate";
+import { loadAdminProfileFromApi } from "@/lib/api/admin-actions";
 
 export function AdminLoginDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
-  const { isAdmin, setAdmin, login } = useAdmin();
+  const { isAdmin, setAdmin, setUsername, login } = useAdmin();
   const navigate = useNavigate();
   const [u, setU] = useState("");
   const [p, setP] = useState("");
@@ -31,8 +32,10 @@ export function AdminLoginDialog({ open, onOpenChange }: { open: boolean; onOpen
       if (isApiMode) {
         const result = await api.loginAdmin(u, p);
         setAdminToken(result.token);
+        setUsername(result.username);
         setAdmin(true);
         await refreshAdminDataFromApi();
+        await loadAdminProfileFromApi();
         toast.success("Welcome back, Admin");
         onOpenChange(false);
         navigate({ to: "/admin" });

@@ -22,6 +22,15 @@ public class AuthController(SweetDripDbContext db, JwtTokenService jwt) : Contro
     }
 
     [Authorize]
+    [HttpGet("me")]
+    public async Task<ActionResult<object>> Me(CancellationToken ct)
+    {
+        var admin = await db.AdminUsers.AsNoTracking().FirstOrDefaultAsync(ct);
+        if (admin == null) return NotFound();
+        return Ok(new { username = admin.Username });
+    }
+
+    [Authorize]
     [HttpPut("credentials")]
     public async Task<IActionResult> UpdateCredentials([FromBody] UpdateCredentialsDto body, CancellationToken ct)
     {
@@ -32,14 +41,16 @@ public class AuthController(SweetDripDbContext db, JwtTokenService jwt) : Contro
             return BadRequest(new { error = "Current password is incorrect" });
 
         var username = body.Username.Trim();
-        var password = body.Password.Trim();
+        var password = body.Password?.Trim() ?? "";
         if (string.IsNullOrEmpty(username)) return BadRequest(new { error = "Username is required" });
-        if (password.Length < 6) return BadRequest(new { error = "Password must be at least 6 characters" });
+        if (!string.IsNullOrEmpty(password) && password.Length < 6)
+            return BadRequest(new { error = "Password must be at least 6 characters" });
 
         admin.Username = username;
-        admin.PasswordHash = BCrypt.Net.BCrypt.HashPassword(password);
+        if (!string.IsNullOrEmpty(password))
+            admin.PasswordHash = BCrypt.Net.BCrypt.HashPassword(password);
         admin.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync(ct);
-        return Ok(new { ok = true });
+        return Ok(new { ok = true, username = admin.Username });
     }
 }
