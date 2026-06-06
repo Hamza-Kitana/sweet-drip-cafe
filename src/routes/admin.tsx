@@ -11,8 +11,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { LogOut, Plus, Pencil, Trash2, Package, Tag, Receipt, Home, Layers, Eye, EyeOff, Search, X, UtensilsCrossed, KeyRound, CalendarDays, Percent, Settings } from "lucide-react";
+import { LogOut, Plus, Pencil, Trash2, Package, Tag, Receipt, Home, Layers, Eye, EyeOff, Search, X, UtensilsCrossed, KeyRound, CalendarDays, Percent, Settings, Phone, Mail, Users, MessageSquare, Clock } from "lucide-react";
 import { isCategoryVisible } from "@/lib/catalog";
+import { formatUsPhoneFull } from "@/lib/phone";
 import {
   ANALYTICS_RANGE_OPTIONS,
   buildOrderDayOptions,
@@ -537,6 +538,40 @@ function OrdersPanel() {
   );
 }
 
+function cateringStatusBadge(status: LargeOrderRequest["status"]) {
+  const styles =
+    status === "new"
+      ? "bg-accent/15 text-accent"
+      : status === "contacted"
+        ? "bg-amber-500/10 text-amber-800"
+        : "bg-emerald-500/10 text-emerald-700";
+  return (
+    <span className={`inline-block rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${styles}`}>
+      {status}
+    </span>
+  );
+}
+
+function CateringDetail({
+  icon: Icon,
+  label,
+  children,
+}: {
+  icon: typeof Phone;
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-xl border bg-background/80 p-3">
+      <div className="mb-1 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        <Icon className="h-3.5 w-3.5 shrink-0" />
+        {label}
+      </div>
+      <div className="text-sm font-medium text-primary">{children}</div>
+    </div>
+  );
+}
+
 function CateringPanel() {
   const { largeOrders } = useShop();
   const newCount = largeOrders.filter((o) => o.status === "new").length;
@@ -555,40 +590,80 @@ function CateringPanel() {
       {largeOrders.length === 0 ? (
         <p className="text-muted-foreground">No catering requests yet.</p>
       ) : (
-        <div className="space-y-3">
-          {largeOrders.map((r) => (
-            <div
-              key={r.id}
-              className={`rounded-2xl border p-4 ${r.status === "new" ? "border-accent/50 bg-accent/5" : ""}`}
-            >
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div>
-                  <div className="font-semibold">
-                    #{r.id} · {r.name}
+        <div className="space-y-4">
+          {largeOrders.map((r) => {
+            const phoneDisplay = formatUsPhoneFull(r.phone) || r.phone;
+            const phoneHref = r.phone.replace(/\D/g, "").length >= 10 ? `tel:+1${r.phone.replace(/\D/g, "").slice(-10)}` : undefined;
+
+            return (
+              <div
+                key={r.id}
+                className={`rounded-2xl border p-4 sm:p-5 ${r.status === "new" ? "border-accent/50 bg-accent/5" : "bg-muted/10"}`}
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border/60 pb-4">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-display text-lg text-primary">#{r.id}</span>
+                      <span className="font-semibold text-primary">{r.name}</span>
+                      {cateringStatusBadge(r.status)}
+                    </div>
+                    <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Clock className="h-3.5 w-3.5 shrink-0" />
+                      Submitted {new Date(r.createdAt).toLocaleString()}
+                    </p>
                   </div>
-                  <div className="text-xs text-muted-foreground">
-                    {new Date(r.createdAt).toLocaleString()} · {r.phone} · {r.email}
+                  <div className="w-full sm:w-auto">
+                    <Label className="mb-1.5 block text-xs text-muted-foreground">Status</Label>
+                    <Select value={r.status} onValueChange={(v) => void patchCateringStatus(r.id, v as LargeOrderRequest["status"])}>
+                      <SelectTrigger className="w-full rounded-xl sm:w-40">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(["new", "contacted", "done"] as const).map((s) => (
+                          <SelectItem key={s} value={s} className="capitalize">
+                            {s}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <div className="text-xs text-muted-foreground">
-                    Event: {r.date} {r.time} · {r.guests} guests
-                  </div>
-                  {r.message && <p className="mt-2 text-sm italic text-muted-foreground">&ldquo;{r.message}&rdquo;</p>}
                 </div>
-                <Select value={r.status} onValueChange={(v) => void patchCateringStatus(r.id, v as LargeOrderRequest["status"])}>
-                  <SelectTrigger className="mt-1 w-36">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(["new", "contacted", "done"] as const).map((s) => (
-                      <SelectItem key={s} value={s} className="capitalize">
-                        {s}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <CateringDetail icon={Phone} label="Phone">
+                    {phoneHref ? (
+                      <a href={phoneHref} className="text-primary underline-offset-2 hover:underline">
+                        {phoneDisplay}
+                      </a>
+                    ) : (
+                      phoneDisplay
+                    )}
+                  </CateringDetail>
+                  <CateringDetail icon={Mail} label="Email">
+                    <a href={`mailto:${r.email}`} className="break-all text-primary underline-offset-2 hover:underline">
+                      {r.email}
+                    </a>
+                  </CateringDetail>
+                  <CateringDetail icon={CalendarDays} label="Event date & time">
+                    {r.date} · {r.time}
+                  </CateringDetail>
+                  <CateringDetail icon={Users} label="Guests">
+                    {r.guests} {r.guests === 1 ? "guest" : "guests"}
+                  </CateringDetail>
+                </div>
+
+                {r.message?.trim() && (
+                  <div className="mt-4 rounded-xl border border-dashed bg-muted/20 p-3">
+                    <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                      <MessageSquare className="h-3.5 w-3.5" />
+                      Message
+                    </div>
+                    <p className="text-sm leading-relaxed text-foreground">{r.message}</p>
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </Card>
