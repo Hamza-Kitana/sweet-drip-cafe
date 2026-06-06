@@ -578,12 +578,20 @@ function paymentBadge(o: Order) {
   );
 }
 
+function isOrderPaid(o: Order) {
+  return o.paymentStatus === "paid";
+}
+
 function OrdersPanel() {
   const { orders } = useShop();
   const confirm = useConfirm();
   const dayOptions = useMemo(() => buildOrderDayOptions(orders), [orders]);
   const [dayFilter, setDayFilter] = useState<OrderDayFilter>("today");
-  const filtered = useMemo(() => filterOrdersByDay(orders, dayFilter), [orders, dayFilter]);
+  const [paymentFilter, setPaymentFilter] = useState<"unpaid" | "paid">("paid");
+  const dayFiltered = useMemo(() => filterOrdersByDay(orders, dayFilter), [orders, dayFilter]);
+  const paidOrders = useMemo(() => dayFiltered.filter(isOrderPaid), [dayFiltered]);
+  const unpaidOrders = useMemo(() => dayFiltered.filter((o) => !isOrderPaid(o)), [dayFiltered]);
+  const filtered = paymentFilter === "paid" ? paidOrders : unpaidOrders;
   const { newCount } = orderAnalytics(filtered);
   const periodLabel =
     dayFilter === "all"
@@ -595,7 +603,7 @@ function OrdersPanel() {
       <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
         <div>
           <h2 className="font-display text-2xl text-primary">Orders</h2>
-          {newCount > 0 && (
+          {newCount > 0 && paymentFilter === "paid" && (
             <p className="mt-1 text-sm text-accent">{newCount} new order(s) in this view</p>
           )}
         </div>
@@ -615,6 +623,27 @@ function OrdersPanel() {
         </div>
       </div>
 
+      <div className="mb-5 flex flex-wrap gap-2">
+        <Button
+          type="button"
+          variant={paymentFilter === "paid" ? "default" : "outline"}
+          className={`rounded-full ${paymentFilter === "paid" ? "gradient-choco text-primary-foreground" : ""}`}
+          onClick={() => setPaymentFilter("paid")}
+        >
+          Paid
+          <span className="ml-2 rounded-full bg-background/20 px-2 py-0.5 text-xs">{paidOrders.length}</span>
+        </Button>
+        <Button
+          type="button"
+          variant={paymentFilter === "unpaid" ? "default" : "outline"}
+          className={`rounded-full ${paymentFilter === "unpaid" ? "gradient-choco text-primary-foreground" : ""}`}
+          onClick={() => setPaymentFilter("unpaid")}
+        >
+          Unpaid
+          <span className="ml-2 rounded-full bg-background/20 px-2 py-0.5 text-xs">{unpaidOrders.length}</span>
+        </Button>
+      </div>
+
       <div className="mb-5 space-y-2">
         <p className="text-sm font-medium text-primary">{periodLabel}</p>
         <SalesSummaryBar orders={filtered} />
@@ -622,8 +651,10 @@ function OrdersPanel() {
 
       {filtered.length === 0 ? (
         <div className="rounded-2xl border border-dashed bg-muted/20 px-4 py-10 text-center">
-          <p className="text-muted-foreground">No orders for {periodLabel.toLowerCase()}.</p>
-          <p className="mt-1 text-xs text-muted-foreground">Choose another day from the menu above.</p>
+          <p className="text-muted-foreground">
+            No {paymentFilter === "paid" ? "paid" : "unpaid"} orders for {periodLabel.toLowerCase()}.
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">Choose another day or switch Paid / Unpaid above.</p>
         </div>
       ) : (
         <div className="space-y-3">
