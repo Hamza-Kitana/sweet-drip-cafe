@@ -40,6 +40,22 @@ public partial class SiteImageService(SweetDripDbContext db, IConfiguration conf
         if (!TryParseDataUrl(dataUrl, out var contentType, out var bytes))
             throw new InvalidOperationException("Invalid image data");
 
+        return await SaveBytesAsync(bytes, contentType, fileName, ct);
+    }
+
+    public async Task<(string Id, string Url)> SaveBytesAsync(
+        byte[] bytes,
+        string contentType,
+        string? fileName,
+        CancellationToken ct)
+    {
+        const int maxBytes = 3 * 1024 * 1024;
+        if (bytes.Length == 0) throw new InvalidOperationException("Image file is empty");
+        if (bytes.Length > maxBytes) throw new InvalidOperationException("Image must be under 3 MB");
+
+        if (string.IsNullOrWhiteSpace(contentType) || !contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+            contentType = "image/jpeg";
+
         var id = Guid.NewGuid().ToString("N")[..12];
         var safeName = SanitizeFileName(fileName, contentType);
         db.SiteImages.Add(new SiteImage

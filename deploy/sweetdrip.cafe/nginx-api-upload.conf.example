@@ -1,0 +1,6 @@
+# Add inside the api.sweetdrip.cafe server { } block (or any block that proxies to sweetdrip-api)
+# Required for admin image uploads — default nginx limit is 1 MB and causes "fetch failed"
+
+client_max_body_size 50m;
+proxy_read_timeout 120s;
+proxy_send_timeout 120s;

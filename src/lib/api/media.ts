@@ -20,6 +20,15 @@ export async function uploadSiteImage(dataUrl: string, fileName?: string) {
   });
 }
 
+export async function uploadSiteImageFile(file: File) {
+  const form = new FormData();
+  form.append("file", file);
+  return apiFetch<{ id: string; url: string }>("/api/admin/media/upload", {
+    method: "POST",
+    body: form,
+  });
+}
+
 export async function deleteSiteImage(id: string) {
   return apiFetch<void>(`/api/admin/media/${id}`, { method: "DELETE" });
 }

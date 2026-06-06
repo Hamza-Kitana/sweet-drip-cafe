@@ -88,9 +88,33 @@ public class AdminController(SweetDripDbContext db, CatalogCacheService catalogC
             var (id, url) = await siteImages.SaveDataUrlAsync(body.DataUrl, body.FileName, ct);
             return Ok(new MediaUploadDto(id, url));
         }
-        catch (InvalidOperationException)
+        catch (InvalidOperationException ex)
         {
-            return BadRequest(new { error = "Invalid image data" });
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpPost("media/upload")]
+    [RequestFormLimits(MultipartBodyLengthLimit = 52_428_800)]
+    public async Task<ActionResult<MediaUploadDto>> UploadMediaFile(IFormFile? file, CancellationToken ct)
+    {
+        if (file == null || file.Length == 0)
+            return BadRequest(new { error = "Image file is required" });
+
+        if (!file.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+            return BadRequest(new { error = "Please choose an image file (JPG, PNG, WebP…)" });
+
+        try
+        {
+            await using var stream = file.OpenReadStream();
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms, ct);
+            var (id, url) = await siteImages.SaveBytesAsync(ms.ToArray(), file.ContentType, file.FileName, ct);
+            return Ok(new MediaUploadDto(id, url));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
         }
     }
 

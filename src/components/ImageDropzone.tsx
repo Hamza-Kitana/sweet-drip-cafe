@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { isApiMode } from "@/lib/api/client";
-import { removeStoredMedia, uploadSiteImage } from "@/lib/api/media";
+import { removeStoredMedia, uploadSiteImageFile } from "@/lib/api/media";
 
 const MAX_BYTES = 3 * 1024 * 1024;
 
@@ -48,13 +48,18 @@ export function ImageDropzone({
   const pickFile = async (file: File | undefined) => {
     if (!file) return;
     try {
-      const dataUrl = await readImageAsDataUrl(file);
       if (isApiMode) {
+        if (file.size > MAX_BYTES) {
+          throw new Error("Image must be under 3 MB");
+        }
+        if (!file.type.startsWith("image/")) {
+          throw new Error("Please choose an image file (JPG, PNG, WebP…)");
+        }
         if (value) await removeStoredMedia(value);
-        const uploaded = await uploadSiteImage(dataUrl, file.name);
+        const uploaded = await uploadSiteImageFile(file);
         onChange(uploaded.url);
       } else {
-        onChange(dataUrl);
+        onChange(await readImageAsDataUrl(file));
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Upload failed");
@@ -152,12 +157,17 @@ export function ImageUploadButton({
   const pickFile = async (file: File | undefined) => {
     if (!file) return;
     try {
-      const dataUrl = await readImageAsDataUrl(file);
       if (isApiMode) {
-        const uploaded = await uploadSiteImage(dataUrl, file.name);
+        if (file.size > MAX_BYTES) {
+          throw new Error("Image must be under 3 MB");
+        }
+        if (!file.type.startsWith("image/")) {
+          throw new Error("Please choose an image file (JPG, PNG, WebP…)");
+        }
+        const uploaded = await uploadSiteImageFile(file);
         onUpload(uploaded.url);
       } else {
-        onUpload(dataUrl);
+        onUpload(await readImageAsDataUrl(file));
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Upload failed");
