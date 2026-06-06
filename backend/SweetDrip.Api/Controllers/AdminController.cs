@@ -12,7 +12,7 @@ namespace SweetDrip.Api.Controllers;
 [Authorize]
 [ApiController]
 [Route("api/admin")]
-public class AdminController(SweetDripDbContext db, CatalogMapper mapper) : ControllerBase
+public class AdminController(SweetDripDbContext db) : ControllerBase
 {
     private static readonly JsonSerializerOptions JsonOpts = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
@@ -104,7 +104,7 @@ public class AdminController(SweetDripDbContext db, CatalogMapper mapper) : Cont
             Price = body.Price,
             Image = body.Image,
             Notes = body.Notes,
-            NoteChoicesJson = JsonSerializer.Serialize(body.NoteChoices, JsonOpts),
+            NoteChoicesJson = JsonSerializer.Serialize(body.NoteChoices ?? [], JsonOpts),
         };
         db.Products.Add(row);
         await db.SaveChangesAsync(ct);
@@ -122,7 +122,7 @@ public class AdminController(SweetDripDbContext db, CatalogMapper mapper) : Cont
         row.Price = body.Price;
         row.Image = body.Image;
         row.Notes = body.Notes;
-        row.NoteChoicesJson = JsonSerializer.Serialize(body.NoteChoices, JsonOpts);
+        row.NoteChoicesJson = JsonSerializer.Serialize(body.NoteChoices ?? [], JsonOpts);
         await db.SaveChangesAsync(ct);
         return Ok();
     }

@@ -1,8 +1,8 @@
 namespace SweetDrip.Api.DTOs;
 
-public record CategoryDto(string Id, string Name, string Image, bool Visible);
-public record ProductDto(string Id, string CategoryId, string Name, string Description, decimal Price, string Image, string Notes, string[] NoteChoices);
-public record OfferDto(string Id, string Title, string Description, decimal Price, string Image, string[]? ProductIds, string? StartAt, string? EndAt, bool Active);
+public record CategoryDto(string? Id, string Name, string Image, bool Visible);
+public record ProductDto(string? Id, string CategoryId, string Name, string Description, decimal Price, string Image, string Notes, string[]? NoteChoices);
+public record OfferDto(string? Id, string Title, string Description, decimal Price, string Image, string[]? ProductIds, string? StartAt, string? EndAt, bool Active);
 public record BackgroundSlideDto(string Image, string Caption);
 public record HeroDto(string Tagline, string Image, string[] FloatingImages, string AboutImage, BackgroundSlideDto[] BackgroundSlides, string HeroBadge, string HeroTitleBefore, string HeroTitleAccent, string HeroTitleAfter);
 public record CatalogDto(CategoryDto[] Categories, ProductDto[] Products, OfferDto[] Offers, HeroDto Hero, decimal TaxRatePercent, bool OffersSectionVisible);

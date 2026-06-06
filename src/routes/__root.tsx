@@ -16,6 +16,7 @@ import { Toaster } from "../components/ui/sonner";
 import { hydrateShopFromApi } from "@/lib/api/hydrate";
 import { isApiMode } from "@/lib/api/client";
 import { initShopSync } from "@/lib/store";
+import { SITE_URL } from "@/lib/site";
 
 function NotFoundComponent() {
   return (
@@ -85,6 +86,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:title", content: "Sweet Drip Dessert Cafe" },
       { property: "og:description", content: "Where every bite is a sweet escape." },
       { property: "og:type", content: "website" },
+      { property: "og:url", content: SITE_URL },
       { name: "twitter:card", content: "summary" },
     ],
     links: [

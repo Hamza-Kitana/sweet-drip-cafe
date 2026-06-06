@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState, useEffect, useRef } from "react";
 import { useShop, useAdmin, fmt, initShopSync, groupCartItems, HERO_SLIDE_COUNT, FLOAT_IMAGE_COUNT, normalizeBackgroundSlides, normalizeFloatingImages, normalizeTaxRate, type HeroSettings, type Product, type Category, type Offer, type Order, type LargeOrderRequest } from "@/lib/store";
 import { AdminGuard } from "@/components/AdminGuard";
-import { ImageDropzone } from "@/components/ImageDropzone";
+import { ImageDropzone, ImageUploadButton } from "@/components/ImageDropzone";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { LogOut, Plus, Pencil, Trash2, Image as ImageIcon, Package, Tag, Receipt, Home, Layers, Eye, EyeOff, Search, X, UtensilsCrossed, KeyRound, CalendarDays, Percent, Settings } from "lucide-react";
+import { LogOut, Plus, Pencil, Trash2, Package, Tag, Receipt, Home, Layers, Eye, EyeOff, Search, X, UtensilsCrossed, KeyRound, CalendarDays, Percent, Settings } from "lucide-react";
 import { isCategoryVisible } from "@/lib/catalog";
 import {
   ANALYTICS_RANGE_OPTIONS,
@@ -200,7 +200,7 @@ function SettingsPanel() {
           <h2 className="font-display text-2xl text-primary">Sales tax</h2>
         </div>
         <p className="mb-4 text-sm text-muted-foreground">
-          Tax is calculated on subtotal + tip at checkout and shown in the order summary.
+          Tax is calculated on products only. Tip is added after subtotal and tax.
         </p>
         <Field label="Tax rate (%)">
           <Input
@@ -691,13 +691,19 @@ function ProductsPanel() {
 
         <div className="mt-6 rounded-2xl border bg-muted/30 p-4">
           <h3 className="mb-3 text-sm font-semibold text-primary">Add section</h3>
-          <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+          <div className="grid gap-3 sm:grid-cols-2">
             <Input placeholder="Section name (e.g. Cakes)" value={sectionName} onChange={(e) => setSectionName(e.target.value)} />
-            <Input placeholder="Image URL (optional)" value={sectionImage} onChange={(e) => setSectionImage(e.target.value)} />
-            <Button onClick={addSection} className="gradient-choco text-primary-foreground">
-              <Plus className="mr-1 h-4 w-4" />Add section
-            </Button>
+            <ImageDropzone
+              value={sectionImage}
+              onChange={setSectionImage}
+              onClear={() => setSectionImage("")}
+              hint="Section photo (optional)"
+              previewClassName="aspect-video max-h-28"
+            />
           </div>
+          <Button onClick={addSection} className="mt-3 gradient-choco text-primary-foreground">
+            <Plus className="mr-1 h-4 w-4" />Add section
+          </Button>
         </div>
       </Card>
 
@@ -738,16 +744,14 @@ function ProductsPanel() {
                     />
                     <span className="text-xs font-medium">{isCategoryVisible(cat) ? "Visible" : "Hidden"}</span>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      const url = prompt("New image URL", cat.image);
-                      if (url) void patchCategory(cat.id, { image: url });
+                  <ImageUploadButton
+                    title="Upload section photo"
+                    onUpload={(image) => {
+                      void patchCategory(cat.id, { image })
+                        .then(() => toast.success("Section photo updated"))
+                        .catch((err) => toast.error(err instanceof Error ? err.message : "Upload failed"));
                     }}
-                  >
-                    <ImageIcon className="h-3 w-3" />
-                  </Button>
+                  />
                   <Button
                     size="sm"
                     variant="outline"
@@ -824,6 +828,10 @@ function categoryImage(categories: Category[], categoryId: string) {
   return categories.find((c) => c.id === categoryId)?.image ?? "";
 }
 
+function productHasOptions(product?: Product | null) {
+  return (product?.noteChoices?.length ?? 0) > 0;
+}
+
 function ProductDialog({ open, onOpenChange, editing, categories, defaultCategoryId, onSave }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -833,43 +841,47 @@ function ProductDialog({ open, onOpenChange, editing, categories, defaultCategor
   onSave: (data: Omit<Product, "id">) => void;
 }) {
   const initialCategoryId = editing?.categoryId ?? defaultCategoryId ?? categories[0]?.id ?? "";
-  const productImageFor = (categoryId: string, existing?: string) =>
-    existing?.trim() || categoryImage(categories, categoryId);
+  const [notesEnabled, setNotesEnabled] = useState(() => productHasOptions(editing));
 
   const [f, setF] = useState<Omit<Product, "id">>({
     name: editing?.name ?? "",
     description: editing?.description ?? "",
     price: editing?.price ?? 0,
-    image: editing
-      ? productImageFor(initialCategoryId, editing.image)
-      : categoryImage(categories, initialCategoryId),
+    image: editing?.image?.trim() ?? "",
     categoryId: initialCategoryId,
     notes: editing?.notes ?? "Sweetness",
-    noteChoices: editing?.noteChoices ?? ["Regular", "Less sugar", "No sugar"],
+    noteChoices: editing?.noteChoices ?? [],
   });
-  const [choicesText, setChoicesText] = useState(f.noteChoices.join("\n"));
+  const [choicesText, setChoicesText] = useState(
+    (editing?.noteChoices ?? []).join("\n"),
+  );
 
   const resetForm = () => {
     const categoryId = editing?.categoryId ?? defaultCategoryId ?? categories[0]?.id ?? "";
+    const enabled = productHasOptions(editing);
+    setNotesEnabled(enabled);
     setF({
       name: editing?.name ?? "",
       description: editing?.description ?? "",
       price: editing?.price ?? 0,
-      image: editing ? productImageFor(categoryId, editing.image) : categoryImage(categories, categoryId),
+      image: editing?.image?.trim() ?? "",
       categoryId,
       notes: editing?.notes ?? "Sweetness",
-      noteChoices: editing?.noteChoices ?? ["Regular", "Less sugar", "No sugar"],
+      noteChoices: editing?.noteChoices ?? [],
     });
-    setChoicesText((editing?.noteChoices ?? ["Regular", "Less sugar", "No sugar"]).join("\n"));
+    setChoicesText((editing?.noteChoices ?? []).join("\n"));
   };
 
   const handleCategoryChange = (nextCategoryId: string) => {
     const prevCategoryImage = categoryImage(categories, f.categoryId);
-    const inheritsSectionImage = f.image === "" || f.image === prevCategoryImage;
+    const inheritsSectionImage =
+      !f.image ||
+      f.image === prevCategoryImage ||
+      f.image === categoryImage(categories, nextCategoryId);
     setF({
       ...f,
       categoryId: nextCategoryId,
-      image: inheritsSectionImage ? categoryImage(categories, nextCategoryId) : f.image,
+      image: inheritsSectionImage ? "" : f.image,
     });
   };
 
@@ -884,33 +896,74 @@ function ProductDialog({ open, onOpenChange, editing, categories, defaultCategor
           <Field label="Name"><Input value={f.name} onChange={e => setF({...f, name: e.target.value})} /></Field>
           <Field label="Price"><Input type="number" step="0.01" value={f.price} onChange={e => setF({...f, price: +e.target.value})} /></Field>
           <div className="sm:col-span-2"><Field label="Description"><Textarea rows={2} value={f.description} onChange={e => setF({...f, description: e.target.value})} /></Field></div>
-          <Field label="Section">
-            <Select value={f.categoryId} onValueChange={handleCategoryChange}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>{categories.map((c: Category) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-            </Select>
-          </Field>
-          <Field label="Image URL">
-            <Input
-              value={f.image}
-              onChange={(e) => setF({ ...f, image: e.target.value })}
-              placeholder={categoryImage(categories, f.categoryId) || "Uses section image by default"}
-            />
-            {f.image && (
-              <img src={f.image} alt="" className="mt-2 max-h-24 rounded-lg border object-cover" />
+          <div className="sm:col-span-2">
+            <Field label="Section">
+              <Select value={f.categoryId} onValueChange={handleCategoryChange}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{categories.map((c: Category) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+              </Select>
+            </Field>
+          </div>
+          <div className="sm:col-span-2">
+            <Field label="Product photo">
+              <p className="mb-2 text-xs text-muted-foreground">
+                Drag & drop or click to upload. Leave empty to use the section image.
+              </p>
+              <ImageDropzone
+                value={f.image}
+                onChange={(v) => setF({ ...f, image: v })}
+                onClear={() => setF({ ...f, image: "" })}
+                previewClassName="aspect-video max-h-44"
+              />
+            </Field>
+          </div>
+          <div className="sm:col-span-2 rounded-2xl border bg-muted/20 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-primary">Customization options</p>
+                <p className="text-xs text-muted-foreground">
+                  Optional choices on the product page (e.g. sweetness, size).
+                </p>
+              </div>
+              <Switch
+                checked={notesEnabled}
+                onCheckedChange={(enabled) => {
+                  setNotesEnabled(enabled);
+                  if (enabled && !choicesText.trim()) {
+                    setChoicesText("Regular\nLess sugar\nNo sugar");
+                  }
+                }}
+                aria-label="Enable customization options"
+              />
+            </div>
+            {notesEnabled && (
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <Field label="Option label (e.g. Sweetness)">
+                  <Input value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} />
+                </Field>
+                <Field label="Choices (one per line)">
+                  <Textarea rows={3} value={choicesText} onChange={(e) => setChoicesText(e.target.value)} />
+                </Field>
+              </div>
             )}
-          </Field>
-          <Field label="Note label (e.g. Sweetness)"><Input value={f.notes} onChange={e => setF({...f, notes: e.target.value})} /></Field>
-          <Field label="Note choices (one per line)">
-            <Textarea rows={3} value={choicesText} onChange={e => setChoicesText(e.target.value)} />
-          </Field>
+          </div>
         </div>
         <Button className="w-full mt-4 rounded-full gradient-choco text-primary-foreground"
-          onClick={() => onSave({
-            ...f,
-            image: (f.image ?? "").trim() || categoryImage(categories, f.categoryId),
-            noteChoices: choicesText.split("\n").map(s => s.trim()).filter(Boolean),
-          })}>Save product</Button>
+          onClick={() => {
+            const noteChoices = notesEnabled
+              ? choicesText.split("\n").map((s) => s.trim()).filter(Boolean)
+              : [];
+            if (notesEnabled && noteChoices.length === 0) {
+              toast.error("Add at least one choice, or turn off customization options");
+              return;
+            }
+            onSave({
+              ...f,
+              image: (f.image ?? "").trim() || categoryImage(categories, f.categoryId),
+              notes: notesEnabled ? f.notes.trim() || "Option" : "",
+              noteChoices,
+            });
+          }}>Save product</Button>
       </DialogContent>
     </Dialog>
   );
@@ -1004,9 +1057,16 @@ function OfferDialog({ open, onOpenChange, editing, onSave }: any) {
         <div className="space-y-3">
           <Field label="Title"><Input value={f.title} onChange={e => setF({...f, title: e.target.value})} /></Field>
           <Field label="Description"><Textarea rows={2} value={f.description} onChange={e => setF({...f, description: e.target.value})} /></Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Price"><Input type="number" step="0.01" value={f.price} onChange={e => setF({...f, price: +e.target.value})} /></Field>
-            <Field label="Image URL"><Input value={f.image} onChange={e => setF({...f, image: e.target.value})} /></Field>
+          <Field label="Price"><Input type="number" step="0.01" value={f.price} onChange={e => setF({...f, price: +e.target.value})} /></Field>
+          <div className="sm:col-span-2">
+            <Field label="Offer photo">
+              <ImageDropzone
+                value={f.image}
+                onChange={(v) => setF({ ...f, image: v })}
+                onClear={() => setF({ ...f, image: "" })}
+                previewClassName="aspect-video max-h-36"
+              />
+            </Field>
           </div>
           <Field label="Included products">
             <div className="max-h-40 space-y-2 overflow-auto rounded-xl border p-3">

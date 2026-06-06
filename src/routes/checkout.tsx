@@ -31,6 +31,7 @@ const schema = z.object({
 
 const stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY?.trim() || "";
 const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : null;
+const isLiveStripe = stripePublishableKey.startsWith("pk_live_");
 
 function parseTipInput(value: string) {
   if (value === "" || value === ".") return 0;
@@ -276,26 +277,40 @@ function CheckoutPage() {
               </Button>
             </div>
           ) : clientSecret && stripePromise ? (
-            <Elements
-              key={clientSecret}
-              stripe={stripePromise}
-              options={{
-                clientSecret,
-                appearance: {
-                  theme: "stripe",
-                  variables: {
-                    colorPrimary: "#5c3d2e",
-                    borderRadius: "12px",
+            <div className="space-y-4">
+              {isLiveStripe && (
+                <div className="rounded-2xl border border-amber-400/40 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+                  <p className="font-semibold">Live payment mode</p>
+                  <p className="mt-1 text-amber-900/90">
+                    Test cards like <code className="rounded bg-amber-100 px-1">4242 4242 4242 4242</code> will not
+                    work. Use a real card, or switch to Stripe <strong>test keys</strong> (
+                    <code className="rounded bg-amber-100 px-1">pk_test_</code> /{" "}
+                    <code className="rounded bg-amber-100 px-1">sk_test_</code>) in your <code>.env</code> while
+                    testing.
+                  </p>
+                </div>
+              )}
+              <Elements
+                key={clientSecret}
+                stripe={stripePromise}
+                options={{
+                  clientSecret,
+                  appearance: {
+                    theme: "stripe",
+                    variables: {
+                      colorPrimary: "#5c3d2e",
+                      borderRadius: "12px",
+                    },
                   },
-                },
-              }}
-            >
-              <StripePaymentForm
-                total={totals.total}
-                customerEmail={form.email}
-                onSuccess={onPaymentSuccess}
-              />
-            </Elements>
+                }}
+              >
+                <StripePaymentForm
+                  total={totals.total}
+                  customerEmail={form.email}
+                  onSuccess={onPaymentSuccess}
+                />
+              </Elements>
+            </div>
           ) : null}
         </div>
 
@@ -337,12 +352,12 @@ function CheckoutPage() {
               <span>{fmt(subtotal)}</span>
             </div>
             <div className="flex justify-between">
-              <span>Tip</span>
-              <span>{fmt(tipAmount)}</span>
-            </div>
-            <div className="flex justify-between">
               <span>Tax ({taxRatePercent}%)</span>
               <span>{fmt(totals.tax)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Tip</span>
+              <span>{fmt(tipAmount)}</span>
             </div>
             <div className="mt-2 flex justify-between border-t pt-2 font-display text-lg">
               <span>Total</span>

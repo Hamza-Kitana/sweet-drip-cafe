@@ -67,7 +67,6 @@ public static class DbSeeder
 
             db.HeroContents.Add(new HeroContent
             {
-                Id = 1,
                 Tagline = "Where every bite is a sweet escape.",
                 Image = "https://images.unsplash.com/photo-1551024506-0bccd828d307?w=1200&q=80",
                 AboutImage = "https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=1200&q=80",
@@ -92,7 +91,6 @@ public static class DbSeeder
         {
             db.AdminUsers.Add(new AdminUser
             {
-                Id = 1,
                 Username = "admin",
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin123"),
                 UpdatedAt = DateTime.UtcNow,

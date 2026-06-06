@@ -13,8 +13,7 @@ namespace SweetDrip.Api.Controllers;
 public class OrdersController(
     SweetDripDbContext db,
     PricingService pricing,
-    StripePaymentService stripe,
-    CatalogMapper mapper) : ControllerBase
+    StripePaymentService stripe) : ControllerBase
 {
     [HttpPost("checkout")]
     public async Task<ActionResult<CheckoutResponseDto>> Checkout([FromBody] CheckoutRequestDto body, CancellationToken ct)

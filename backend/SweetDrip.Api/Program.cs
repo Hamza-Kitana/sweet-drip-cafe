@@ -1,5 +1,6 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using SweetDrip.Api.Data;
@@ -38,7 +39,7 @@ builder.Services.AddCors(options =>
     options.AddPolicy("Frontend", policy =>
     {
         var origins = builder.Configuration.GetSection("Cors:Origins").Get<string[]>() ??
-                      ["http://localhost:5173", "https://sweet-drip-cafe-weld.vercel.app"];
+                      ["http://localhost:3000", "https://sweetdrip.cafe", "https://www.sweetdrip.cafe"];
         policy.WithOrigins(origins).AllowAnyHeader().AllowAnyMethod();
     });
 });
@@ -48,7 +49,17 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<SweetDripDbContext>();
-    await DbSeeder.SeedAsync(db);
+    var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("Startup");
+    try
+    {
+        await DbSeeder.SeedAsync(db);
+    }
+    catch (SqlException ex)
+    {
+        logger.LogCritical(ex,
+            "Cannot connect to SQL Server. Install SQL Server Express LocalDB or update ConnectionStrings:DefaultConnection in appsettings.json.");
+        throw;
+    }
 }
 
 app.UseCors("Frontend");

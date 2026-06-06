@@ -5,7 +5,9 @@ REST API for the Sweet Drip cafe website. All catalog, orders, payments, admin s
 ## Requirements
 
 - [.NET 8 SDK](https://dotnet.microsoft.com/download)
-- SQL Server or LocalDB (included with Visual Studio / SQL Server Express)
+- **SQL Server Express LocalDB** (required — the API will not start without it)
+  - Install via [SQL Server Express](https://www.microsoft.com/en-us/sql-server/sql-server-downloads) or Visual Studio with "Data storage and processing"
+  - Or use any SQL Server instance and update `ConnectionStrings:DefaultConnection`
 
 ## Quick start
 
@@ -38,6 +40,32 @@ Example production connection string:
 ```
 Server=your-server.database.windows.net;Database=SweetDripDb;User Id=...;Password=...;TrustServerCertificate=True;
 ```
+
+## Production — sweetdrip.cafe
+
+| URL | Service |
+|-----|---------|
+| https://sweetdrip.cafe | Frontend (Vercel) |
+| https://api.sweetdrip.cafe | This API (Azure App Service) |
+| SQL Server | Azure SQL Database |
+| Domain DNS | Namecheap |
+
+Full step-by-step: `deploy/sweetdrip.cafe/SETUP-COMPLETE.md`  
+DNS records: `deploy/sweetdrip.cafe/DNS-NAMECHEAP.md`
+
+Production env on Azure:
+
+```
+ConnectionStrings__DefaultConnection=...
+Stripe__SecretKey=sk_live_...
+Stripe__WebhookSecret=whsec_...
+Jwt__Key=...
+Cors__Origins__0=https://sweetdrip.cafe
+Cors__Origins__1=https://www.sweetdrip.cafe
+ASPNETCORE_ENVIRONMENT=Production
+```
+
+Stripe webhook: `https://api.sweetdrip.cafe/api/stripe/webhook`
 
 ## Frontend connection
 

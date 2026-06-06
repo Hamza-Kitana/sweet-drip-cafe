@@ -88,7 +88,7 @@ public class CateringRequest
 
 public class AdminUser
 {
-    public int Id { get; set; } = 1;
+    public int Id { get; set; }
     public string Username { get; set; } = "admin";
     public string PasswordHash { get; set; } = "";
     public DateTime UpdatedAt { get; set; }
@@ -102,7 +102,7 @@ public class AppSetting
 
 public class HeroContent
 {
-    public int Id { get; set; } = 1;
+    public int Id { get; set; }
     public string Tagline { get; set; } = "";
     public string Image { get; set; } = "";
     public string FloatingImagesJson { get; set; } = "[]";

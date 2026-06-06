@@ -40,14 +40,17 @@ start "Sweet Drip API" cmd /k "cd /d "%~dp0backend\SweetDrip.Api" && dotnet run"
 
 timeout /t 2 /nobreak >nul
 
-echo Starting Frontend     (http://localhost:5173) ...
+echo Starting Frontend     (http://localhost:3000) ...
 start "Sweet Drip Frontend" cmd /k "cd /d "%~dp0" && npm run dev"
 
 echo.
 echo  Both servers are starting in separate windows.
 echo.
 echo  Backend:  http://localhost:5025
-echo  Frontend: http://localhost:5173
+echo  Frontend: http://localhost:3000
+echo.
+echo  NOTE: Backend needs SQL Server LocalDB installed.
+echo        Download: https://aka.ms/ssmsfullsetup
 echo.
 echo  Make sure .env contains:
 echo    VITE_API_URL=http://localhost:5025

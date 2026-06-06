@@ -102,11 +102,11 @@ function InvoicePage() {
           </table>
           <div className="mt-4 space-y-1 text-sm border-t pt-4">
             <Row label="Subtotal" value={fmt(order.subtotal)} />
-            <Row label="Tip" value={fmt(order.tip)} />
             <Row
               label={order.taxRate != null ? `Tax (${order.taxRate}%)` : "Tax"}
               value={fmt(order.tax ?? Math.max(0, order.total - order.subtotal - order.tip))}
             />
+            <Row label="Tip" value={fmt(order.tip)} />
             <Row label="Total" value={fmt(order.total)} bold />
           </div>
         </div>

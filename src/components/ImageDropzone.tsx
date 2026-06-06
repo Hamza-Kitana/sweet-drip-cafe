@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { ImagePlus, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 const MAX_BYTES = 3 * 1024 * 1024;
 
@@ -117,5 +118,54 @@ export function ImageDropzone({
         )}
       </div>
     </div>
+  );
+}
+
+type ImageUploadButtonProps = {
+  onUpload: (dataUrl: string) => void;
+  className?: string;
+  title?: string;
+};
+
+/** Compact upload button — opens file picker (no URL prompt). */
+export function ImageUploadButton({
+  onUpload,
+  className,
+  title = "Upload image",
+}: ImageUploadButtonProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const pickFile = async (file: File | undefined) => {
+    if (!file) return;
+    try {
+      onUpload(await readImageAsDataUrl(file));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Upload failed");
+    }
+  };
+
+  return (
+    <>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="sr-only"
+        onChange={(e) => {
+          void pickFile(e.target.files?.[0]);
+          e.target.value = "";
+        }}
+      />
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        className={className}
+        title={title}
+        onClick={() => inputRef.current?.click()}
+      >
+        <Upload className="h-3 w-3" />
+      </Button>
+    </>
   );
 }

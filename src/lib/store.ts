@@ -219,7 +219,7 @@ type ShopState = {
   orders: Order[];
   largeOrders: LargeOrderRequest[];
   hero: HeroSettings;
-  /** Sales tax % applied to subtotal + tip at checkout */
+  /** Sales tax % applied to product subtotal only (tip is added after tax) */
   taxRatePercent: number;
   /** Show offers tab, homepage block, and menu filter */
   offersSectionVisible: boolean;
@@ -254,14 +254,13 @@ export function normalizeTaxRate(rate?: number): number {
   return +n.toFixed(2);
 }
 
-export function calcTaxAmount(subtotal: number, tip: number, taxRatePercent: number): number {
-  const base = subtotal + tip;
-  return +(base * (normalizeTaxRate(taxRatePercent) / 100)).toFixed(2);
+export function calcTaxAmount(subtotal: number, taxRatePercent: number): number {
+  return +(subtotal * (normalizeTaxRate(taxRatePercent) / 100)).toFixed(2);
 }
 
 export function calcOrderTotal(subtotal: number, tip: number, taxRatePercent: number) {
-  const tax = calcTaxAmount(subtotal, tip, taxRatePercent);
-  const total = +(subtotal + tip + tax).toFixed(2);
+  const tax = calcTaxAmount(subtotal, taxRatePercent);
+  const total = +(subtotal + tax + tip).toFixed(2);
   return { tax, total };
 }
 

@@ -53,8 +53,8 @@ public class PricingService(SweetDripDbContext db)
         subtotal = Math.Round(subtotal, 2);
         tip = Math.Round(Math.Max(0, tip), 2);
         var taxRate = await GetTaxRateAsync(ct);
-        var tax = Math.Round((subtotal + tip) * (taxRate / 100m), 2);
-        var total = Math.Round(subtotal + tip + tax, 2);
+        var tax = Math.Round(subtotal * (taxRate / 100m), 2);
+        var total = Math.Round(subtotal + tax + tip, 2);
         return (orderItems, subtotal, taxRate, tax, total);
     }
 

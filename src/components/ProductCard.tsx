@@ -19,7 +19,7 @@ export function ProductCard({ p, index = 0 }: { p: Product; index?: number }) {
       price: p.price,
       qty: 1,
       image: img,
-      noteChoice: p.noteChoices[0],
+      noteChoice: p.noteChoices.length > 0 ? p.noteChoices[0] : undefined,
     });
     toast.success(`${p.name} added to cart`);
   };
