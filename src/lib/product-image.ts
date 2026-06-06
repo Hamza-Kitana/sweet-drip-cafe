@@ -3,6 +3,8 @@ import { Cake, Coffee, Cookie, CupSoda, IceCreamCone, Sparkles } from "lucide-re
 
 export const PRODUCT_IMAGE_NONE = "product-image:none";
 export const PRODUCT_IMAGE_SECTION = "product-image:section";
+/** Upload mode selected but no file chosen yet */
+export const PRODUCT_IMAGE_UPLOAD = "product-image:upload";
 const ICON_PREFIX = "product-image:icon-";
 
 export type ProductImageMode = "none" | "section" | "icon" | "upload";
@@ -44,7 +46,8 @@ export function encodeProductImage(
   if (mode === "none") return PRODUCT_IMAGE_NONE;
   if (mode === "section") return PRODUCT_IMAGE_SECTION;
   if (mode === "icon" && options.iconId) return `${ICON_PREFIX}${options.iconId}`;
-  return (options.uploadUrl ?? "").trim();
+  const uploadUrl = (options.uploadUrl ?? "").trim();
+  return uploadUrl || PRODUCT_IMAGE_UPLOAD;
 }
 
 export function parseProductImageStored(
@@ -58,6 +61,9 @@ export function parseProductImageStored(
   }
   if (value === PRODUCT_IMAGE_SECTION) {
     return { mode: "section", iconId: "cake", uploadUrl: "" };
+  }
+  if (value === PRODUCT_IMAGE_UPLOAD) {
+    return { mode: "upload", iconId: "cake", uploadUrl: "" };
   }
   if (value.startsWith(ICON_PREFIX)) {
     const iconId = value.slice(ICON_PREFIX.length) as ProductImageIconId;

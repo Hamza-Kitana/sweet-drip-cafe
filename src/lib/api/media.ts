@@ -30,15 +30,14 @@ export async function uploadSiteImageFile(file: File) {
   });
 }
 
-/** Multipart first; JSON base64 fallback when nginx blocks the request body. */
+/** Multipart first; JSON base64 fallback when the network or proxy blocks the request. */
 export async function uploadPreparedImage(file: File) {
   try {
     return await uploadSiteImageFile(file);
   } catch (err) {
-    const fallback =
-      err instanceof ApiError &&
-      (err.status === 0 || err.status === 413 || err.message.toLowerCase().includes("nginx"));
-    if (!fallback) throw err;
+    if (err instanceof ApiError && (err.status === 401 || err.status === 403 || err.status === 400)) {
+      throw err;
+    }
     const dataUrl = await fileToDataUrl(file);
     return uploadSiteImage(dataUrl, file.name);
   }

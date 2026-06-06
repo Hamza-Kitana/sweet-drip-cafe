@@ -1524,6 +1524,11 @@ function ProductDialog({ open, onOpenChange, editing, categories, defaultCategor
               toast.error("Add at least one option group with choices, or turn off customization");
               return;
             }
+            const imageParsed = parseProductImageStored(f.image, categoryImage(categories, f.categoryId));
+            if (imageParsed.mode === "upload" && !imageParsed.uploadUrl) {
+              toast.error("Upload a product photo or choose another image option");
+              return;
+            }
             onSave({
               ...f,
               image: (f.image ?? "").trim() || PRODUCT_IMAGE_SECTION,

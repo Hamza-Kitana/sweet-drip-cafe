@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { ImagePlus, Upload, X } from "lucide-react";
+import { ImagePlus, Loader2, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -45,20 +45,25 @@ export function ImageDropzone({
 }: ImageDropzoneProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   const pickFile = async (file: File | undefined) => {
-    if (!file) return;
+    if (!file || uploading) return;
+    setUploading(true);
     try {
       if (isApiMode) {
         const prepared = await prepareImageForUpload(file);
         if (value) await removeStoredMedia(value);
         const uploaded = await uploadPreparedImage(prepared);
         onChange(uploaded.url);
+        toast.success("Image uploaded");
       } else {
         onChange(await readImageAsDataUrl(file));
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Upload failed");
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -78,8 +83,8 @@ export function ImageDropzone({
       <div
         role="button"
         tabIndex={0}
-        onClick={() => inputRef.current?.click()}
-        onKeyDown={(e) => e.key === "Enter" && inputRef.current?.click()}
+        onClick={() => !uploading && inputRef.current?.click()}
+        onKeyDown={(e) => e.key === "Enter" && !uploading && inputRef.current?.click()}
         onDragOver={(e) => {
           e.preventDefault();
           setDragging(true);
@@ -102,6 +107,13 @@ export function ImageDropzone({
             e.target.value = "";
           }}
         />
+
+        {uploading && (
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 rounded-2xl bg-background/80">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-xs font-medium text-primary">Uploading…</p>
+          </div>
+        )}
 
         {value ? (
           <>
