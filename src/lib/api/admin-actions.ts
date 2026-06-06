@@ -139,3 +139,21 @@ export async function patchCateringStatus(id: string, status: "new" | "contacted
   await api.updateCateringStatusApi(id, status);
   await refreshAdminDataFromApi();
 }
+
+export async function removeOrder(id: string) {
+  if (!isApiMode) {
+    useShop.getState().deleteOrder(id);
+    return;
+  }
+  await api.deleteOrderApi(id);
+  await refreshAdminDataFromApi();
+}
+
+export async function removeCatering(id: string) {
+  if (!isApiMode) {
+    useShop.getState().deleteLargeOrder(id);
+    return;
+  }
+  await api.deleteCateringApi(id);
+  await refreshAdminDataFromApi();
+}

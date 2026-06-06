@@ -92,6 +92,10 @@ export async function updateOrderStatusApi(orderId: string, status: Order["statu
   });
 }
 
+export async function deleteOrderApi(id: string) {
+  return apiFetch<void>(`/api/orders/${id}`, { method: "DELETE" });
+}
+
 export async function submitCatering(input: Omit<LargeOrderRequest, "id" | "createdAt" | "status">) {
   return apiFetch<LargeOrderRequest>("/api/catering", {
     method: "POST",
@@ -108,6 +112,10 @@ export async function updateCateringStatusApi(id: string, status: LargeOrderRequ
     method: "PATCH",
     body: JSON.stringify({ status }),
   });
+}
+
+export async function deleteCateringApi(id: string) {
+  return apiFetch<void>(`/api/catering/${id}`, { method: "DELETE" });
 }
 
 export async function fetchOverviewStats() {

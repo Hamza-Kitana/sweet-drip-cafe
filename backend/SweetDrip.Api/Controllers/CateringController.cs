@@ -56,6 +56,17 @@ public class CateringController(SweetDripDbContext db) : ControllerBase
         return Ok(Map(row));
     }
 
+    [Authorize]
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(string id, CancellationToken ct)
+    {
+        var row = await db.CateringRequests.FindAsync([id], ct);
+        if (row == null) return NotFound();
+        db.CateringRequests.Remove(row);
+        await db.SaveChangesAsync(ct);
+        return Ok();
+    }
+
     private static CateringDto Map(CateringRequest r) =>
         new(r.Id, r.CreatedAt.ToString("o"), r.Name, r.Email, r.Phone, r.Guests, r.Date, r.Time, r.Message,
             r.Status.ToString().ToLowerInvariant());

@@ -134,6 +134,17 @@ public class OrdersController(
         return Ok(Map(order));
     }
 
+    [Authorize]
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(string id, CancellationToken ct)
+    {
+        var order = await db.Orders.FirstOrDefaultAsync(o => o.Id == id, ct);
+        if (order == null) return NotFound();
+        db.Orders.Remove(order);
+        await db.SaveChangesAsync(ct);
+        return Ok();
+    }
+
     private static OrderDto Map(Order o)
     {
         var dto = CatalogMapper.MapOrder(o);

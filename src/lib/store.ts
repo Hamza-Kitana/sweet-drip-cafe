@@ -238,9 +238,11 @@ type ShopState = {
 
   addOrder: (o: Omit<Order, "id" | "createdAt" | "status">) => Order;
   updateOrderStatus: (id: string, s: Order["status"]) => void;
+  deleteOrder: (id: string) => void;
 
   addLargeOrder: (o: Omit<LargeOrderRequest, "id" | "createdAt" | "status">) => LargeOrderRequest;
   updateLargeOrderStatus: (id: string, s: LargeOrderRequest["status"]) => void;
+  deleteLargeOrder: (id: string) => void;
 
   setHero: (h: Partial<HeroSettings>) => void;
   setTaxRatePercent: (rate: number) => void;
@@ -371,6 +373,7 @@ export const useShop = create<ShopState>()(
         return order;
       },
       updateOrderStatus: (oid, s) => set({ orders: get().orders.map(x => x.id === oid ? { ...x, status: s } : x) }),
+      deleteOrder: (id) => set({ orders: get().orders.filter((x) => x.id !== id) }),
 
       addLargeOrder: (o) => {
         const request: LargeOrderRequest = {
@@ -385,6 +388,7 @@ export const useShop = create<ShopState>()(
       },
       updateLargeOrderStatus: (id, s) =>
         set({ largeOrders: get().largeOrders.map((x) => (x.id === id ? { ...x, status: s } : x)) }),
+      deleteLargeOrder: (id) => set({ largeOrders: get().largeOrders.filter((x) => x.id !== id) }),
 
       setHero: (h) => {
         const current = get().hero;

@@ -36,6 +36,8 @@ import {
   patchOrderStatus,
   removeCategory,
   removeOffer,
+  removeOrder,
+  removeCatering,
   removeProduct,
   saveCategory,
   saveHeroToApi,
@@ -58,13 +60,50 @@ export const Route = createFileRoute("/admin")({
 
 type Tab = "overview" | "orders" | "catering" | "products" | "offers" | "site" | "settings";
 
+const SEEN_ORDERS_KEY = "sweetdrip-admin-seen-orders";
+const SEEN_CATERING_KEY = "sweetdrip-admin-seen-catering";
+
+function loadSeenIds(key: string): Set<string> {
+  if (typeof sessionStorage === "undefined") return new Set();
+  try {
+    return new Set(JSON.parse(sessionStorage.getItem(key) ?? "[]") as string[]);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveSeenIds(key: string, ids: Set<string>) {
+  if (typeof sessionStorage === "undefined") return;
+  sessionStorage.setItem(key, JSON.stringify([...ids]));
+}
+
+function markSeenNewOrders(orders: Order[], prev: Set<string>) {
+  const next = new Set(prev);
+  for (const o of orders) {
+    if (o.status === "new") next.add(o.id);
+  }
+  saveSeenIds(SEEN_ORDERS_KEY, next);
+  return next;
+}
+
+function markSeenNewCatering(requests: LargeOrderRequest[], prev: Set<string>) {
+  const next = new Set(prev);
+  for (const r of requests) {
+    if (r.status === "new") next.add(r.id);
+  }
+  saveSeenIds(SEEN_CATERING_KEY, next);
+  return next;
+}
+
 function Dashboard() {
   const { setAdmin } = useAdmin();
   const isAdmin = useAdmin((s) => s.isAdmin);
   const orders = useShop((s) => s.orders);
   const largeOrders = useShop((s) => s.largeOrders);
-  const newOrderCount = orders.filter((o) => o.status === "new").length;
-  const newCateringCount = largeOrders.filter((o) => o.status === "new").length;
+  const [seenOrderIds, setSeenOrderIds] = useState(() => loadSeenIds(SEEN_ORDERS_KEY));
+  const [seenCateringIds, setSeenCateringIds] = useState(() => loadSeenIds(SEEN_CATERING_KEY));
+  const sidebarOrderBadge = orders.filter((o) => o.status === "new" && !seenOrderIds.has(o.id)).length;
+  const sidebarCateringBadge = largeOrders.filter((o) => o.status === "new" && !seenCateringIds.has(o.id)).length;
   const [tab, setTab] = useState<Tab>("overview");
   const lastSeenOrderId = useRef<string | null>(null);
   const lastSeenCateringId = useRef<string | null>(null);
@@ -123,6 +162,16 @@ function Dashboard() {
     }
   }, [isAdmin, largeOrders]);
 
+  useEffect(() => {
+    if (tab !== "orders") return;
+    setSeenOrderIds((prev) => markSeenNewOrders(orders, prev));
+  }, [tab, orders]);
+
+  useEffect(() => {
+    if (tab !== "catering") return;
+    setSeenCateringIds((prev) => markSeenNewCatering(largeOrders, prev));
+  }, [tab, largeOrders]);
+
   const NAV: { id: Tab; label: string; icon: any }[] = [
     { id: "overview", label: "Overview", icon: Home },
     { id: "orders",   label: "Orders",   icon: Receipt },
@@ -143,14 +192,14 @@ function Dashboard() {
                 <button key={n.id} onClick={() => setTab(n.id)}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm transition ${tab === n.id ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm" : "text-[var(--footer-muted)] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"}`}>
                   <n.icon className="w-4 h-4" /> {n.label}
-                  {n.id === "orders" && newOrderCount > 0 && (
+                  {n.id === "orders" && sidebarOrderBadge > 0 && (
                     <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-[10px] font-bold text-primary">
-                      {newOrderCount}
+                      {sidebarOrderBadge}
                     </span>
                   )}
-                  {n.id === "catering" && newCateringCount > 0 && (
+                  {n.id === "catering" && sidebarCateringBadge > 0 && (
                     <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-[10px] font-bold text-primary">
-                      {newCateringCount}
+                      {sidebarCateringBadge}
                     </span>
                   )}
                 </button>
@@ -455,6 +504,7 @@ function paymentBadge(o: Order) {
 
 function OrdersPanel() {
   const { orders } = useShop();
+  const confirm = useConfirm();
   const dayOptions = useMemo(() => buildOrderDayOptions(orders), [orders]);
   const [dayFilter, setDayFilter] = useState<OrderDayFilter>("today");
   const filtered = useMemo(() => filterOrdersByDay(orders, dayFilter), [orders, dayFilter]);
@@ -515,14 +565,38 @@ function OrdersPanel() {
                     {o.customer.guests != null ? ` · ${o.customer.guests} guests` : ""}
                   </div>
                 </div>
-                <div className="text-right">
+                <div className="flex flex-wrap items-start justify-end gap-2">
                   <div className="font-display text-xl">{fmt(o.total)}</div>
                   <Select value={o.status} onValueChange={(v) => void patchOrderStatus(o.id, v as Order["status"])}>
-                    <SelectTrigger className="w-36 mt-1"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="mt-1 w-36"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {["new","preparing","ready","done","cancelled"].map(s => <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>)}
                     </SelectContent>
                   </Select>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="mt-1"
+                    aria-label={`Delete order ${o.id}`}
+                    onClick={() => {
+                      void (async () => {
+                        const ok = await confirm({
+                          title: "Delete order?",
+                          description: `Order #${o.id} for ${o.customer.name} (${fmt(o.total)}) will be removed permanently.`,
+                          confirmLabel: "Delete order",
+                        });
+                        if (!ok) return;
+                        try {
+                          await removeOrder(o.id);
+                          toast.success("Order deleted");
+                        } catch (err) {
+                          toast.error(err instanceof Error ? err.message : "Delete failed");
+                        }
+                      })();
+                    }}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
                 </div>
               </div>
               <ul className="mt-3 text-sm text-muted-foreground">
@@ -574,6 +648,7 @@ function CateringDetail({
 
 function CateringPanel() {
   const { largeOrders } = useShop();
+  const confirm = useConfirm();
   const newCount = largeOrders.filter((o) => o.status === "new").length;
 
   return (
@@ -612,20 +687,45 @@ function CateringPanel() {
                       Submitted {new Date(r.createdAt).toLocaleString()}
                     </p>
                   </div>
-                  <div className="w-full sm:w-auto">
-                    <Label className="mb-1.5 block text-xs text-muted-foreground">Status</Label>
-                    <Select value={r.status} onValueChange={(v) => void patchCateringStatus(r.id, v as LargeOrderRequest["status"])}>
-                      <SelectTrigger className="w-full rounded-xl sm:w-40">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(["new", "contacted", "done"] as const).map((s) => (
-                          <SelectItem key={s} value={s} className="capitalize">
-                            {s}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <div className="flex w-full flex-wrap items-end gap-2 sm:w-auto">
+                    <div className="min-w-[10rem] flex-1 sm:flex-none">
+                      <Label className="mb-1.5 block text-xs text-muted-foreground">Status</Label>
+                      <Select value={r.status} onValueChange={(v) => void patchCateringStatus(r.id, v as LargeOrderRequest["status"])}>
+                        <SelectTrigger className="w-full rounded-xl sm:w-40">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(["new", "contacted", "done"] as const).map((s) => (
+                            <SelectItem key={s} value={s} className="capitalize">
+                              {s}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      aria-label={`Delete catering request ${r.id}`}
+                      onClick={() => {
+                        void (async () => {
+                          const ok = await confirm({
+                            title: "Delete catering request?",
+                            description: `Request #${r.id} from ${r.name} will be removed permanently.`,
+                            confirmLabel: "Delete request",
+                          });
+                          if (!ok) return;
+                          try {
+                            await removeCatering(r.id);
+                            toast.success("Request deleted");
+                          } catch (err) {
+                            toast.error(err instanceof Error ? err.message : "Delete failed");
+                          }
+                        })();
+                      }}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
                   </div>
                 </div>
 
