@@ -1,5 +1,8 @@
 namespace SweetDrip.Api.DTOs;
 
+using System.Globalization;
+using System.Text.Json.Serialization;
+
 public record CategoryDto(string? Id, string Name, string Image, bool Visible);
 public record ProductDto(string? Id, string CategoryId, string Name, string Description, decimal Price, string Image, string Notes, string[]? NoteChoices);
 public record OfferDto(string? Id, string Title, string Description, decimal Price, string Image, string[]? ProductIds, string? StartAt, string? EndAt, bool Active);
@@ -28,5 +31,7 @@ public record OverviewStatsDto(decimal Revenue, int OrderCount, int NewOrders, i
 
 public record UpdateOrderStatusDto(string Status);
 public record UpdateCateringStatusDto(string Status);
-public record UpdateTaxRateDto(decimal TaxRatePercent);
+public record TaxRateSettingDto(decimal TaxRatePercent);
+public record UpdateTaxRateDto(
+    [property: JsonPropertyName("taxRatePercent")] decimal TaxRatePercent);
 public record UpdateOffersVisibilityDto(bool Visible);

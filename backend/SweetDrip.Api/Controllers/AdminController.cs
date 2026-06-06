@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -28,11 +29,23 @@ public class AdminController(SweetDripDbContext db) : ControllerBase
         return Ok(new OverviewStatsDto(revenue, count, newCount, unpaid, avg));
     }
 
-    [HttpPut("settings/tax-rate")]
-    public async Task<IActionResult> SetTaxRate([FromBody] UpdateTaxRateDto body, CancellationToken ct)
+    [HttpGet("settings/tax-rate")]
+    public async Task<ActionResult<TaxRateSettingDto>> GetTaxRate(CancellationToken ct)
     {
-        await UpsertSetting("TaxRatePercent", Math.Clamp(body.TaxRatePercent, 0, 100).ToString("0.##"), ct);
-        return Ok();
+        return Ok(new TaxRateSettingDto(await ReadTaxRateAsync(ct)));
+    }
+
+    [HttpPut("settings/tax-rate")]
+    public async Task<ActionResult<TaxRateSettingDto>> SetTaxRate([FromBody] UpdateTaxRateDto? body, CancellationToken ct)
+    {
+        if (body == null) return BadRequest(new { error = "Tax rate is required" });
+
+        var rate = Math.Clamp(Math.Round(body.TaxRatePercent, 2), 0, 100);
+        await UpsertSetting(
+            "TaxRatePercent",
+            rate.ToString("0.##", CultureInfo.InvariantCulture),
+            ct);
+        return Ok(new TaxRateSettingDto(rate));
     }
 
     [HttpPut("settings/offers-visible")]
@@ -191,5 +204,13 @@ public class AdminController(SweetDripDbContext db) : ControllerBase
         if (row == null) db.AppSettings.Add(new AppSetting { Key = key, Value = value });
         else row.Value = value;
         await db.SaveChangesAsync(ct);
+    }
+
+    private async Task<decimal> ReadTaxRateAsync(CancellationToken ct)
+    {
+        var row = await db.AppSettings.AsNoTracking().FirstOrDefaultAsync(s => s.Key == "TaxRatePercent", ct);
+        if (row == null || !decimal.TryParse(row.Value, NumberStyles.Number, CultureInfo.InvariantCulture, out var rate))
+            return 10.25m;
+        return Math.Clamp(Math.Round(rate, 2), 0, 100);
     }
 }

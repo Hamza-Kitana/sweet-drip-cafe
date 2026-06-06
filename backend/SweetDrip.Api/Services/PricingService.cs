@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using SweetDrip.Api.Data;
 using SweetDrip.Api.DTOs;
@@ -61,7 +62,8 @@ public class PricingService(SweetDripDbContext db)
     public async Task<decimal> GetTaxRateAsync(CancellationToken ct = default)
     {
         var setting = await db.AppSettings.AsNoTracking().FirstOrDefaultAsync(s => s.Key == "TaxRatePercent", ct);
-        if (setting == null || !decimal.TryParse(setting.Value, out var rate)) return 10.25m;
+        if (setting == null || !decimal.TryParse(setting.Value, NumberStyles.Number, CultureInfo.InvariantCulture, out var rate))
+            return 10.25m;
         return Math.Clamp(Math.Round(rate, 2), 0, 100);
     }
 }

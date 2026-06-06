@@ -258,6 +258,15 @@ export function normalizeTaxRate(rate?: number): number {
   return +n.toFixed(2);
 }
 
+/** Parse admin tax input — accepts 10.25 or 10,25 */
+export function parseTaxRateInput(raw: string): number | null {
+  const trimmed = raw.trim().replace(",", ".");
+  if (!trimmed) return null;
+  const n = Number(trimmed);
+  if (Number.isNaN(n)) return null;
+  return normalizeTaxRate(n);
+}
+
 export function calcTaxAmount(subtotal: number, taxRatePercent: number): number {
   return +(subtotal * (normalizeTaxRate(taxRatePercent) / 100)).toFixed(2);
 }

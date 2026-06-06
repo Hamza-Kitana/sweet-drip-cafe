@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState, useEffect, useRef } from "react";
-import { useShop, useAdmin, fmt, initShopSync, groupCartItems, HERO_SLIDE_COUNT, FLOAT_IMAGE_COUNT, normalizeBackgroundSlides, normalizeFloatingImages, normalizeTaxRate, type HeroSettings, type Product, type Category, type Offer, type Order, type LargeOrderRequest } from "@/lib/store";
+import { useShop, useAdmin, fmt, initShopSync, groupCartItems, HERO_SLIDE_COUNT, FLOAT_IMAGE_COUNT, normalizeBackgroundSlides, normalizeFloatingImages, normalizeTaxRate, parseTaxRateInput, type HeroSettings, type Product, type Category, type Offer, type Order, type LargeOrderRequest } from "@/lib/store";
 import { AdminGuard } from "@/components/AdminGuard";
 import { ConfirmProvider, useConfirm } from "@/components/ConfirmDialog";
 import { ImageDropzone, ImageUploadButton } from "@/components/ImageDropzone";
@@ -40,6 +40,7 @@ import {
   removeCatering,
   removeProduct,
   loadAdminProfileFromApi,
+  loadTaxRateFromApi,
   updateAdminCredentialsToApi,
   saveCategory,
   saveHeroToApi,
@@ -241,6 +242,10 @@ function SettingsPanel() {
   const { taxRatePercent } = useShop();
   const { username, updateCredentials } = useAdmin();
   const [taxRate, setTaxRate] = useState(String(taxRatePercent));
+  const [taxSaving, setTaxSaving] = useState(false);
+  const taxTimer = useRef<number>();
+  const taxSaveGen = useRef(0);
+  const taxLoaded = useRef(false);
   const [account, setAccount] = useState({
     username,
     password: "",
@@ -249,7 +254,10 @@ function SettingsPanel() {
   });
 
   useEffect(() => {
-    if (!isApiMode) return;
+    if (!isApiMode) {
+      taxLoaded.current = true;
+      return;
+    }
     void loadAdminProfileFromApi()
       .then(() => {
         setAccount((a) => ({ ...a, username: useAdmin.getState().username }));
@@ -257,53 +265,86 @@ function SettingsPanel() {
       .catch(() => {
         /* keep cached username */
       });
+    void loadTaxRateFromApi()
+      .then(() => {
+        setTaxRate(String(useShop.getState().taxRatePercent));
+        taxLoaded.current = true;
+      })
+      .catch(() => {
+        taxLoaded.current = true;
+      });
   }, []);
+
+  useEffect(() => () => window.clearTimeout(taxTimer.current), []);
+
+  useEffect(() => {
+    if (!taxLoaded.current) return;
+    const parsed = parseTaxRateInput(taxRate);
+    if (parsed === null || parsed === taxRatePercent) return;
+
+    window.clearTimeout(taxTimer.current);
+    taxTimer.current = window.setTimeout(() => {
+      const gen = ++taxSaveGen.current;
+      setTaxSaving(true);
+      void saveTaxRateToApi(parsed)
+        .then((saved) => {
+          if (gen !== taxSaveGen.current) return;
+          setTaxRate(String(saved));
+          toast.success(`Tax rate set to ${saved}%`);
+        })
+        .catch((err) => {
+          if (gen !== taxSaveGen.current) return;
+          toast.error(err instanceof Error ? err.message : "Could not save tax rate");
+          setTaxRate(String(taxRatePercent));
+        })
+        .finally(() => {
+          if (gen === taxSaveGen.current) setTaxSaving(false);
+        });
+    }, 700);
+  }, [taxRate, taxRatePercent]);
 
   useEffect(() => {
     setAccount((a) => ({ ...a, username }));
   }, [username]);
 
   useEffect(() => {
+    if (taxSaving) return;
     setTaxRate(String(taxRatePercent));
-  }, [taxRatePercent]);
+    taxLoaded.current = true;
+  }, [taxRatePercent, taxSaving]);
 
   return (
     <div className="max-w-3xl space-y-6">
       <Card>
-        <div className="mb-4 flex items-center gap-2">
-          <Percent className="h-5 w-5 text-primary" />
-          <h2 className="font-display text-2xl text-primary">Sales tax</h2>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Percent className="h-5 w-5 text-primary" />
+            <h2 className="font-display text-2xl text-primary">Sales tax</h2>
+          </div>
+          <div className="flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium text-muted-foreground">
+            {taxSaving ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-accent" />
+                Saving…
+              </>
+            ) : (
+              <>Saved to database</>
+            )}
+          </div>
         </div>
         <p className="mb-4 text-sm text-muted-foreground">
-          Tax is calculated on products only. Tip is added after subtotal and tax.
+          Tax is calculated on products only. Tip is added after subtotal and tax. Changes save automatically.
         </p>
         <Field label="Tax rate (%)">
           <Input
-            type="number"
-            min={0}
-            max={100}
-            step={0.01}
+            type="text"
+            inputMode="decimal"
             value={taxRate}
             onChange={(e) => setTaxRate(e.target.value)}
             placeholder="10.25"
             className="max-w-xs"
           />
         </Field>
-        <Button
-          className="mt-4 rounded-full"
-          onClick={async () => {
-            const parsed = normalizeTaxRate(parseFloat(taxRate));
-            try {
-              await saveTaxRateToApi(parsed);
-              setTaxRate(String(parsed));
-              toast.success(`Tax rate set to ${parsed}%`);
-            } catch (err) {
-              toast.error(err instanceof Error ? err.message : "Could not save tax rate");
-            }
-          }}
-        >
-          Save tax rate
-        </Button>
       </Card>
 
       <Card>

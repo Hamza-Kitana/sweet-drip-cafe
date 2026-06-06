@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using SweetDrip.Api.Data;
 using SweetDrip.Api.DTOs;
@@ -24,7 +25,7 @@ public class CatalogMapper(SweetDripDbContext db)
             products.Select(MapProduct).ToArray(),
             offers.Select(MapOffer).ToArray(),
             MapHero(hero),
-            decimal.TryParse(taxRate?.Value, out var tr) ? tr : 10.25m,
+            decimal.TryParse(taxRate?.Value, NumberStyles.Number, CultureInfo.InvariantCulture, out var tr) ? tr : 10.25m,
             offersVisible?.Value != "false"
         );
     }

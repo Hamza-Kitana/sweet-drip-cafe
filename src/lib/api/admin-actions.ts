@@ -1,5 +1,5 @@
 import type { Category, HeroSettings, Offer, Order, Product } from "@/lib/store";
-import { useAdmin, useShop } from "@/lib/store";
+import { normalizeTaxRate, useAdmin, useShop } from "@/lib/store";
 import * as api from "./backend";
 import { isApiMode } from "./client";
 import { hydrateShopFromApi, refreshAdminDataFromApi } from "./hydrate";
@@ -20,13 +20,22 @@ export async function updateAdminCredentialsToApi(input: {
   useAdmin.getState().setUsername(result.username);
 }
 
+export async function loadTaxRateFromApi() {
+  if (!isApiMode) return;
+  const { taxRatePercent } = await api.fetchTaxRate();
+  useShop.getState().setTaxRatePercent(taxRatePercent);
+}
+
 export async function saveTaxRateToApi(taxRatePercent: number) {
+  const rate = normalizeTaxRate(taxRatePercent);
+  useShop.getState().setTaxRatePercent(rate);
   if (!isApiMode) {
-    useShop.getState().setTaxRatePercent(taxRatePercent);
-    return;
+    return rate;
   }
-  await api.saveTaxRate(taxRatePercent);
+  const result = await api.saveTaxRate(rate);
+  useShop.getState().setTaxRatePercent(result.taxRatePercent);
   await hydrateShopFromApi();
+  return result.taxRatePercent;
 }
 
 export async function saveOffersVisibleToApi(visible: boolean) {

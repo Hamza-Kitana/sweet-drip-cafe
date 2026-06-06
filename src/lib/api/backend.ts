@@ -132,8 +132,12 @@ export async function fetchOverviewStats() {
   }>("/api/admin/overview");
 }
 
+export async function fetchTaxRate() {
+  return apiFetch<{ taxRatePercent: number }>("/api/admin/settings/tax-rate");
+}
+
 export async function saveTaxRate(taxRatePercent: number) {
-  return apiFetch<void>("/api/admin/settings/tax-rate", {
+  return apiFetch<{ taxRatePercent: number }>("/api/admin/settings/tax-rate", {
     method: "PUT",
     body: JSON.stringify({ taxRatePercent }),
   });
