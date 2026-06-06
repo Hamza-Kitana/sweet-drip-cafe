@@ -115,3 +115,21 @@ export function orderAnalytics(orders: Order[]) {
 
   return { revenue, count, newCount, doneCount, avg };
 }
+
+/** Format API ISO date for `<input type="datetime-local" />`. */
+export function toDatetimeLocalValue(iso?: string | null) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** Normalize datetime-local or ISO string for the offers API. */
+export function normalizeOfferSchedule(value?: string | null) {
+  const trimmed = value?.trim();
+  if (!trimmed) return "";
+  const d = new Date(trimmed);
+  if (Number.isNaN(d.getTime())) return trimmed;
+  return d.toISOString();
+}

@@ -8,11 +8,11 @@ namespace SweetDrip.Api.Controllers;
 public class CatalogController(CatalogCacheService catalogCache) : ControllerBase
 {
     [HttpGet("catalog")]
-    [ResponseCache(Duration = 60, Location = ResponseCacheLocation.Any, VaryByHeader = "Accept-Encoding")]
     public async Task<IActionResult> GetCatalog(CancellationToken ct)
     {
         var catalog = await catalogCache.GetCatalogAsync(ct);
-        Response.Headers.CacheControl = "public, max-age=60, s-maxage=180, stale-while-revalidate=300";
+        Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";
+        Response.Headers.Pragma = "no-cache";
         return Ok(catalog);
     }
 }

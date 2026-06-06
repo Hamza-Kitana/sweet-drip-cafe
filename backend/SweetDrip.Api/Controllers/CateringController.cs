@@ -13,6 +13,7 @@ namespace SweetDrip.Api.Controllers;
 public class CateringController(
     SweetDripDbContext db,
     EmailNotificationService email,
+    LiveRevisionService revisions,
     ILogger<CateringController> logger) : ControllerBase
 {
     [HttpPost]
@@ -33,6 +34,7 @@ public class CateringController(
         };
         db.CateringRequests.Add(request);
         await db.SaveChangesAsync(ct);
+        revisions.BumpAdmin();
 
         try
         {
@@ -67,6 +69,7 @@ public class CateringController(
             _ => CateringStatus.New,
         };
         await db.SaveChangesAsync(ct);
+        revisions.BumpAdmin();
         return Ok(Map(row));
     }
 
@@ -78,6 +81,7 @@ public class CateringController(
         if (row == null) return NotFound();
         db.CateringRequests.Remove(row);
         await db.SaveChangesAsync(ct);
+        revisions.BumpAdmin();
         return Ok();
     }
 

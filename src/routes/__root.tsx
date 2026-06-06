@@ -4,6 +4,7 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
@@ -14,6 +15,7 @@ import favicon from "@/assets/Sweet_Drip_Logo..png?url";
 import { Layout } from "../components/Layout";
 import { Toaster } from "../components/ui/sonner";
 import { hydrateShopFromApi } from "@/lib/api/hydrate";
+import { configureLiveSync, startLiveSync, stopLiveSync } from "@/lib/api/live-sync";
 import { isApiMode } from "@/lib/api/client";
 import { initShopSync } from "@/lib/store";
 import { SITE_URL } from "@/lib/site";
@@ -123,11 +125,19 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const isAdminRoute = useRouterState({ select: (s) => s.location.pathname.startsWith("/admin") });
 
   useEffect(() => {
     initShopSync();
-    if (isApiMode) void hydrateShopFromApi({ broadcast: false });
+    if (isApiMode) {
+      void hydrateShopFromApi({ broadcast: false }).finally(() => startLiveSync());
+    }
+    return () => stopLiveSync();
   }, []);
+
+  useEffect(() => {
+    configureLiveSync({ admin: isAdminRoute });
+  }, [isAdminRoute]);
 
   return (
     <QueryClientProvider client={queryClient}>

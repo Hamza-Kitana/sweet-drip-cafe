@@ -1,7 +1,9 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Minus, Plus, ShoppingBag, Sparkles, Trash2, X } from "lucide-react";
-import { useCart, fmt } from "@/lib/store";
+import { useCart, fmt, useShop } from "@/lib/store";
 import { isOfferCartItem } from "@/lib/offers";
+import { ProductImageDisplay } from "@/components/ProductImageDisplay";
+import { findNoteChoice, formatChoiceWithExtra } from "@/lib/product-options";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -14,6 +16,7 @@ import {
 
 export function CartDrawer() {
   const { items, setQty, remove, drawerOpen, setDrawerOpen } = useCart();
+  const { products, categories } = useShop();
   const navigate = useNavigate();
   const count = items.reduce((s, i) => s + i.qty, 0);
   const subtotal = items.reduce((s, i) => s + i.price * i.qty, 0);
@@ -81,18 +84,23 @@ export function CartDrawer() {
         ) : (
           <>
             <div className="relative z-[1] min-h-0 flex-1 space-y-2.5 overflow-y-auto px-4 py-3">
-              {items.map((it) => (
+              {items.map((it) => {
+                const product = products.find((p) => p.id === it.productId);
+                const categoryImage = categories.find((c) => c.id === product?.categoryId)?.image;
+                const choiceRow = product ? findNoteChoice(product, it.noteChoice) : undefined;
+                return (
                 <div
                   key={it.uid}
                   className="flex gap-2.5 rounded-xl border border-[oklch(0.72_0.09_350/0.2)] bg-white/45 p-2.5 shadow-soft backdrop-blur-md"
                 >
-                  {it.image && (
-                    <img
-                      src={it.image}
-                      alt={it.name}
-                      className="h-14 w-14 shrink-0 rounded-lg object-cover"
-                    />
-                  )}
+                  <ProductImageDisplay
+                    image={it.image}
+                    categoryImage={categoryImage}
+                    alt={it.name}
+                    className="h-14 w-14 shrink-0 rounded-lg object-cover"
+                    iconClassName="h-6 w-6 text-primary/40"
+                    emptyClassName="h-5 w-5 text-muted-foreground/35"
+                  />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
@@ -106,7 +114,10 @@ export function CartDrawer() {
                       <span className="shrink-0 text-sm font-semibold text-primary">{fmt(it.price * it.qty)}</span>
                     </div>
                     {it.noteChoice && (
-                      <p className="mt-0.5 text-xs text-muted-foreground">Option: {it.noteChoice}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {product?.notes ? `${product.notes}: ` : "Option: "}
+                        {choiceRow ? formatChoiceWithExtra(choiceRow, fmt) : it.noteChoice}
+                      </p>
                     )}
                     {it.note && (
                       <p className="text-xs italic text-muted-foreground">&ldquo;{it.note}&rdquo;</p>
@@ -142,7 +153,8 @@ export function CartDrawer() {
                     </div>
                   </div>
                 </div>
-              ))}
+              );
+              })}
             </div>
 
             <div className="relative z-[1] border-t border-[oklch(0.72_0.09_350/0.22)] bg-white/40 px-4 py-4 backdrop-blur-lg">

@@ -1,9 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState, useEffect, useRef } from "react";
 import { useShop, useAdmin, fmt, initShopSync, groupCartItems, HERO_SLIDE_COUNT, FLOAT_IMAGE_COUNT, normalizeBackgroundSlides, normalizeFloatingImages, normalizeTaxRate, parseTaxRateInput, normalizeOrderStatus, EDITABLE_ORDER_STATUSES, formatOrderStatusLabel, type HeroSettings, type Product, type Category, type Offer, type Order, type LargeOrderRequest } from "@/lib/store";
+import { toDatetimeLocalValue } from "@/lib/admin-dates";
 import { AdminGuard } from "@/components/AdminGuard";
 import { ConfirmProvider, useConfirm } from "@/components/ConfirmDialog";
 import { ImageDropzone, ImageUploadButton } from "@/components/ImageDropzone";
+import { ProductImageDisplay } from "@/components/ProductImageDisplay";
+import { ProductImagePicker } from "@/components/ProductImagePicker";
+import { ProductOptionsEditor } from "@/components/ProductOptionsEditor";
+import { PRODUCT_IMAGE_SECTION, parseProductImageStored } from "@/lib/product-image";
+import { normalizeNoteChoices, type ProductNoteChoice } from "@/lib/product-options";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -1320,9 +1326,12 @@ function ProductsPanel() {
                   {sectionProducts.map((p) => (
                     <div key={p.id} className="overflow-hidden rounded-2xl border">
                       <div className="aspect-video bg-muted">
-                        {(p.image || cat.image) && (
-                          <img src={p.image || cat.image} alt={p.name} className="h-full w-full object-cover" />
-                        )}
+                        <ProductImageDisplay
+                          image={p.image}
+                          categoryImage={cat.image}
+                          alt={p.name}
+                          className="h-full w-full object-cover"
+                        />
                       </div>
                       <div className="p-3">
                         <div className="truncate font-semibold">{p.name}</div>
@@ -1406,13 +1415,13 @@ function ProductDialog({ open, onOpenChange, editing, categories, defaultCategor
     name: editing?.name ?? "",
     description: editing?.description ?? "",
     price: editing?.price ?? 0,
-    image: editing?.image?.trim() ?? "",
+    image: editing?.image?.trim() || PRODUCT_IMAGE_SECTION,
     categoryId: initialCategoryId,
     notes: editing?.notes ?? "Sweetness",
-    noteChoices: editing?.noteChoices ?? [],
+    noteChoices: normalizeNoteChoices(editing?.noteChoices ?? []),
   });
-  const [choicesText, setChoicesText] = useState(
-    (editing?.noteChoices ?? []).join("\n"),
+  const [choiceRows, setChoiceRows] = useState<ProductNoteChoice[]>(() =>
+    normalizeNoteChoices(editing?.noteChoices ?? []),
   );
 
   const resetForm = () => {
@@ -1423,25 +1432,24 @@ function ProductDialog({ open, onOpenChange, editing, categories, defaultCategor
       name: editing?.name ?? "",
       description: editing?.description ?? "",
       price: editing?.price ?? 0,
-      image: editing?.image?.trim() ?? "",
+      image: editing?.image?.trim() || PRODUCT_IMAGE_SECTION,
       categoryId,
       notes: editing?.notes ?? "Sweetness",
-      noteChoices: editing?.noteChoices ?? [],
+      noteChoices: normalizeNoteChoices(editing?.noteChoices ?? []),
     });
-    setChoicesText((editing?.noteChoices ?? []).join("\n"));
+    setChoiceRows(normalizeNoteChoices(editing?.noteChoices ?? []));
   };
 
   const handleCategoryChange = (nextCategoryId: string) => {
     const prevCategoryImage = categoryImage(categories, f.categoryId);
-    const inheritsSectionImage =
-      !f.image ||
-      f.image === prevCategoryImage ||
-      f.image === categoryImage(categories, nextCategoryId);
-    setF({
-      ...f,
-      categoryId: nextCategoryId,
-      image: inheritsSectionImage ? "" : f.image,
-    });
+    const parsed = parseProductImageStored(f.image, prevCategoryImage);
+    let nextImage = f.image;
+    if (parsed.mode === "upload" && f.image === prevCategoryImage && prevCategoryImage) {
+      nextImage = PRODUCT_IMAGE_SECTION;
+    } else if (!f.image.trim()) {
+      nextImage = PRODUCT_IMAGE_SECTION;
+    }
+    setF({ ...f, categoryId: nextCategoryId, image: nextImage });
   };
 
   return (
@@ -1466,51 +1474,35 @@ function ProductDialog({ open, onOpenChange, editing, categories, defaultCategor
           <div className="sm:col-span-2">
             <Field label="Product photo">
               <p className="mb-2 text-xs text-muted-foreground">
-                Drag & drop or click to upload. Leave empty to use the section image.
+                Empty, section photo, icon, or upload your own image.
               </p>
-              <ImageDropzone
+              <ProductImagePicker
                 value={f.image}
-                onChange={(v) => setF({ ...f, image: v })}
-                onClear={() => setF({ ...f, image: "" })}
-                previewClassName="aspect-video max-h-44"
+                categoryImage={categoryImage(categories, f.categoryId)}
+                onChange={(encoded) => setF({ ...f, image: encoded })}
               />
             </Field>
           </div>
-          <div className="sm:col-span-2 rounded-2xl border bg-muted/20 p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-medium text-primary">Customization options</p>
-                <p className="text-xs text-muted-foreground">
-                  Optional choices on the product page (e.g. sweetness, size).
-                </p>
-              </div>
-              <Switch
-                checked={notesEnabled}
-                onCheckedChange={(enabled) => {
-                  setNotesEnabled(enabled);
-                  if (enabled && !choicesText.trim()) {
-                    setChoicesText("Regular\nLess sugar\nNo sugar");
-                  }
-                }}
-                aria-label="Enable customization options"
-              />
-            </div>
-            {notesEnabled && (
-              <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                <Field label="Option label (e.g. Sweetness)">
-                  <Input value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} />
-                </Field>
-                <Field label="Choices (one per line)">
-                  <Textarea rows={3} value={choicesText} onChange={(e) => setChoicesText(e.target.value)} />
-                </Field>
-              </div>
-            )}
+          <div className="sm:col-span-2">
+            <ProductOptionsEditor
+              enabled={notesEnabled}
+              onEnabledChange={setNotesEnabled}
+              optionLabel={f.notes}
+              onOptionLabelChange={(notes) => setF({ ...f, notes })}
+              choices={choiceRows}
+              onChoicesChange={setChoiceRows}
+            />
           </div>
         </div>
         <Button className="w-full mt-4 rounded-full gradient-choco text-primary-foreground"
           onClick={() => {
             const noteChoices = notesEnabled
-              ? choicesText.split("\n").map((s) => s.trim()).filter(Boolean)
+              ? choiceRows
+                  .map((row) => ({
+                    label: row.label.trim(),
+                    extraPrice: Math.max(0, +row.extraPrice || 0),
+                  }))
+                  .filter((row) => row.label)
               : [];
             if (notesEnabled && noteChoices.length === 0) {
               toast.error("Add at least one choice, or turn off customization options");
@@ -1518,7 +1510,7 @@ function ProductDialog({ open, onOpenChange, editing, categories, defaultCategor
             }
             onSave({
               ...f,
-              image: (f.image ?? "").trim() || categoryImage(categories, f.categoryId),
+              image: (f.image ?? "").trim() || PRODUCT_IMAGE_SECTION,
               notes: notesEnabled ? f.notes.trim() || "Option" : "",
               noteChoices,
             });
@@ -1630,7 +1622,9 @@ function OfferDialog({ open, onOpenChange, editing, onSave }: any) {
         title: editing?.title ?? "", description: editing?.description ?? "", price: editing?.price ?? 0,
         image: editing?.image ?? "https://images.unsplash.com/photo-1551024506-0bccd828d307?w=900",
         productIds: editing?.productIds ?? [],
-        active: editing?.active ?? true, startAt: editing?.startAt ?? "", endAt: editing?.endAt ?? "",
+        active: editing?.active ?? true,
+        startAt: toDatetimeLocalValue(editing?.startAt),
+        endAt: toDatetimeLocalValue(editing?.endAt),
       });
     }}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-auto">

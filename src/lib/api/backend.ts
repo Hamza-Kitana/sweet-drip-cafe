@@ -12,12 +12,24 @@ type CatalogResponse = {
 
 let catalogInflight: Promise<CatalogResponse> | null = null;
 
-export async function fetchCatalog() {
-  if (catalogInflight) return catalogInflight;
-  catalogInflight = apiFetch<CatalogResponse>("/api/catalog").finally(() => {
-    catalogInflight = null;
+export async function fetchSyncRevision() {
+  return apiFetch<{ catalogRevision: number; adminRevision: number }>("/api/sync/revision", {
+    cache: "no-store",
   });
-  return catalogInflight;
+}
+
+export async function fetchCatalog(options?: { fresh?: boolean }) {
+  const path = options?.fresh ? `/api/catalog?_=${Date.now()}` : "/api/catalog";
+  const init: RequestInit = options?.fresh ? { cache: "no-store" } : {};
+
+  if (!options?.fresh && catalogInflight) return catalogInflight;
+
+  const request = apiFetch<CatalogResponse>(path, init).finally(() => {
+    if (!options?.fresh) catalogInflight = null;
+  });
+
+  if (!options?.fresh) catalogInflight = request;
+  return request;
 }
 
 type ApiOrder = Order & {
@@ -207,7 +219,7 @@ export async function createOffer(offer: Omit<Offer, "id">) {
 }
 
 export async function updateOffer(offer: Offer) {
-  return apiFetch<void>(`/api/admin/offers/${offer.id}`, {
+  return apiFetch<Offer>(`/api/admin/offers/${offer.id}`, {
     method: "PUT",
     body: JSON.stringify(offer),
   });

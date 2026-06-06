@@ -3,10 +3,18 @@ import { useState } from "react";
 import { motion } from "motion/react";
 import { ChevronLeft, Plus, Minus, ShoppingBag } from "lucide-react";
 import { useShop, useCart, fmt } from "@/lib/store";
+import { ProductImageDisplay } from "@/components/ProductImageDisplay";
+import {
+  formatChoiceExtra,
+  getChoiceLabel,
+  getProductPriceRange,
+  resolveProductUnitPrice,
+} from "@/lib/product-options";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/product/$id")({
   component: ProductPage,
@@ -32,10 +40,26 @@ function ProductPage() {
     );
   }
   const cat = categories.find(c => c.id === product.categoryId);
-  const img = product.image || cat?.image;
+  const hasOptions = product.noteChoices.length > 0;
+  const selectedChoice = choice ?? (hasOptions ? getChoiceLabel(product.noteChoices[0]) : undefined);
+  const unitPrice = resolveProductUnitPrice(product, selectedChoice);
+  const priceRange = getProductPriceRange(product);
+  const showPriceRange = hasOptions && priceRange.min !== priceRange.max && !choice;
 
   const onAdd = () => {
-    add({ productId: product.id, name: product.name, price: product.price, qty, image: img, noteChoice: choice, note });
+    if (hasOptions && !selectedChoice) {
+      toast.error(`Please choose ${product.notes.toLowerCase()}`);
+      return;
+    }
+    add({
+      productId: product.id,
+      name: product.name,
+      price: unitPrice,
+      qty,
+      image: product.image,
+      noteChoice: selectedChoice,
+      note,
+    });
     toast.success("Added to cart");
   };
 
@@ -47,23 +71,58 @@ function ProductPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-12">
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5 }}
           className="aspect-square max-h-[min(85vw,28rem)] md:max-h-none mx-auto w-full rounded-2xl sm:rounded-3xl overflow-hidden shadow-glow gradient-hero">
-          {img && <img src={img} alt={product.name} className="w-full h-full object-cover" />}
+          <ProductImageDisplay
+            image={product.image}
+            categoryImage={cat?.image}
+            alt={product.name}
+            className="w-full h-full object-cover"
+            iconClassName="h-20 w-20 text-primary/35 sm:h-28 sm:w-28"
+          />
         </motion.div>
         <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5, delay: 0.1 }}>
           <p className="text-xs uppercase tracking-[0.3em] text-secondary">{cat?.name}</p>
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-display text-primary mt-2">{product.name}</h1>
-          <div className="mt-2 sm:mt-3 text-2xl sm:text-3xl font-display text-gradient-gold">{fmt(product.price)}</div>
+          <div className="mt-2 sm:mt-3">
+            <div className="text-2xl sm:text-3xl font-display text-gradient-gold">
+              {showPriceRange ? `${fmt(priceRange.min)} – ${fmt(priceRange.max)}` : fmt(unitPrice)}
+            </div>
+            {hasOptions && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Base {fmt(product.price)} · final price depends on your selection
+              </p>
+            )}
+          </div>
           <p className="mt-5 text-muted-foreground leading-relaxed">{product.description}</p>
 
-          {product.noteChoices.length > 0 && (
+          {hasOptions && (
             <div className="mt-8">
               <Label className="mb-3 block font-semibold">{product.notes}</Label>
               <div className="flex flex-wrap gap-2">
-                {product.noteChoices.map(c => (
-                  <button key={c} onClick={() => setChoice(c)}
-                    className={`px-4 py-2 rounded-full text-sm border-2 transition ${choice === c ? "border-primary bg-primary text-primary-foreground" : "border-border hover:border-primary/50"}`}
-                  >{c}</button>
-                ))}
+                {product.noteChoices.map((c) => {
+                  const label = getChoiceLabel(c);
+                  const extraLabel = formatChoiceExtra(c.extraPrice, fmt);
+                  const selected = selectedChoice === label;
+                  return (
+                    <button
+                      key={label}
+                      type="button"
+                      onClick={() => setChoice(label)}
+                      className={cn(
+                        "inline-flex items-center gap-2 rounded-full border-2 px-4 py-2 text-sm transition",
+                        selected
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-border hover:border-primary/50",
+                      )}
+                    >
+                      <span>{label}</span>
+                      {extraLabel && (
+                        <span className={cn("text-xs font-semibold", selected ? "text-primary-foreground/90" : "text-primary")}>
+                          {extraLabel}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -80,7 +139,7 @@ function ProductPage() {
               <button onClick={() => setQty(qty + 1)} className="w-9 h-9 rounded-full hover:bg-muted flex items-center justify-center"><Plus className="w-4 h-4" /></button>
             </div>
             <Button onClick={onAdd} size="lg" className="w-full sm:w-auto rounded-full gradient-choco text-primary-foreground hover:opacity-90 px-6 sm:px-8">
-              <ShoppingBag className="w-4 h-4 mr-2" /> Add to cart · {fmt(product.price * qty)}
+              <ShoppingBag className="w-4 h-4 mr-2" /> Add to cart · {fmt(unitPrice * qty)}
             </Button>
           </div>
         </motion.div>

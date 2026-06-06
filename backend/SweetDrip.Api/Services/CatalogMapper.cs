@@ -32,7 +32,9 @@ public class CatalogMapper(SweetDripDbContext db)
 
     public static ProductDto MapProduct(Product p) =>
         new(p.Id, p.CategoryId, p.Name, p.Description, p.Price, p.Image, p.Notes,
-            JsonSerializer.Deserialize<string[]>(p.NoteChoicesJson, JsonOpts) ?? []);
+            NoteChoicesParser.Parse(p.NoteChoicesJson)
+                .Select(c => new ProductNoteChoiceDto(c.Label, c.ExtraPrice))
+                .ToArray());
 
     public static OfferDto MapOffer(Offer o) =>
         new(o.Id, o.Title, o.Description, o.Price, o.Image,

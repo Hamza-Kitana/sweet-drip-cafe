@@ -7,7 +7,7 @@ import float1 from "@/assets/float-1.png";
 import float2 from "@/assets/float-2.png";
 import float3 from "@/assets/float-3.png";
 
-export type ProductOption = { name: string; choices: string[] };
+export type ProductNoteChoice = { label: string; extraPrice: number };
 export type Product = {
   id: string;
   categoryId: string;
@@ -15,8 +15,8 @@ export type Product = {
   description: string;
   price: number;
   image?: string;
-  notes: string;          // label like "Sugar level"
-  noteChoices: string[];  // ["With sugar","No sugar","Medium"]
+  notes: string;
+  noteChoices: ProductNoteChoice[];
 };
 export type Category = { id: string; name: string; image: string; visible?: boolean };
 export type Offer = {
@@ -129,14 +129,14 @@ const seedCategories: Category[] = [
 ];
 
 const seedProducts: Product[] = [
-  { id: "p1", categoryId: "cakes", name: "Belgian Chocolate Cake", description: "Rich layered cake with Belgian chocolate ganache and fresh berries.", price: 8.5, image: "https://images.unsplash.com/photo-1606313564200-e75d5e30476c?w=900", notes: "Sweetness", noteChoices: ["Regular sugar","Less sugar","No sugar"] },
-  { id: "p2", categoryId: "cakes", name: "Pistachio Dream", description: "Layers of pistachio cream with a hint of rose.", price: 7.5, image: "https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=900", notes: "Sweetness", noteChoices: ["Regular","Less sweet","Extra sweet"] },
-  { id: "p3", categoryId: "icecream", name: "Triple Scoop Cone", description: "Three premium scoops in a fresh waffle cone.", price: 6.0, image: "https://images.unsplash.com/photo-1488900128323-21503983a07e?w=900", notes: "Flavors", noteChoices: ["Choco/Vanilla/Pistachio","Strawberry/Vanilla/Choco","Surprise me"] },
-  { id: "p4", categoryId: "icecream", name: "Chocolate Sundae", description: "Vanilla ice cream drowned in warm chocolate sauce.", price: 5.5, image: "https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=900", notes: "Toppings", noteChoices: ["With nuts","Without nuts","Extra chocolate"] },
-  { id: "p5", categoryId: "drinks", name: "Iced Caramel Latte", description: "Espresso, milk, caramel and ice. Smooth and sweet.", price: 4.5, image: "https://images.unsplash.com/photo-1461023058943-07fcbe16d735?w=900", notes: "Sugar", noteChoices: ["Regular","Less sugar","No sugar"] },
-  { id: "p6", categoryId: "drinks", name: "Hot Chocolate", description: "Velvety dark hot chocolate with whipped cream.", price: 4.0, image: "https://images.unsplash.com/photo-1517578239113-b03992dcdd25?w=900", notes: "Style", noteChoices: ["Classic","With marshmallows","Spicy"] },
-  { id: "p7", categoryId: "pastries", name: "Butter Croissant", description: "Flaky, golden, perfectly buttery.", price: 3.5, image: "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=900", notes: "Filling", noteChoices: ["Plain","Chocolate","Almond"] },
-  { id: "p8", categoryId: "pastries", name: "Cinnamon Roll", description: "Warm, gooey, swirled with cinnamon glaze.", price: 4.0, image: "https://images.unsplash.com/photo-1509365465985-25d11c17e812?w=900", notes: "Glaze", noteChoices: ["Regular","Extra glaze","No glaze"] },
+  { id: "p1", categoryId: "cakes", name: "Belgian Chocolate Cake", description: "Rich layered cake with Belgian chocolate ganache and fresh berries.", price: 8.5, image: "https://images.unsplash.com/photo-1606313564200-e75d5e30476c?w=900", notes: "Sweetness", noteChoices: [{ label: "Regular sugar", extraPrice: 0 }, { label: "Less sugar", extraPrice: 0 }, { label: "No sugar", extraPrice: 0 }] },
+  { id: "p2", categoryId: "cakes", name: "Pistachio Dream", description: "Layers of pistachio cream with a hint of rose.", price: 7.5, image: "https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=900", notes: "Sweetness", noteChoices: [{ label: "Regular", extraPrice: 0 }, { label: "Less sweet", extraPrice: 0 }, { label: "Extra sweet", extraPrice: 1 }] },
+  { id: "p3", categoryId: "icecream", name: "Triple Scoop Cone", description: "Three premium scoops in a fresh waffle cone.", price: 6.0, image: "https://images.unsplash.com/photo-1488900128323-21503983a07e?w=900", notes: "Flavors", noteChoices: [{ label: "Choco/Vanilla/Pistachio", extraPrice: 0 }, { label: "Strawberry/Vanilla/Choco", extraPrice: 0 }, { label: "Surprise me", extraPrice: 0 }] },
+  { id: "p4", categoryId: "icecream", name: "Chocolate Sundae", description: "Vanilla ice cream drowned in warm chocolate sauce.", price: 5.5, image: "https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=900", notes: "Toppings", noteChoices: [{ label: "With nuts", extraPrice: 0 }, { label: "Without nuts", extraPrice: 0 }, { label: "Extra chocolate", extraPrice: 0.75 }] },
+  { id: "p5", categoryId: "drinks", name: "Iced Caramel Latte", description: "Espresso, milk, caramel and ice. Smooth and sweet.", price: 4.5, image: "https://images.unsplash.com/photo-1461023058943-07fcbe16d735?w=900", notes: "Sugar", noteChoices: [{ label: "Regular", extraPrice: 0 }, { label: "Less sugar", extraPrice: 0 }, { label: "No sugar", extraPrice: 0 }] },
+  { id: "p6", categoryId: "drinks", name: "Hot Chocolate", description: "Velvety dark hot chocolate with whipped cream.", price: 4.0, image: "https://images.unsplash.com/photo-1517578239113-b03992dcdd25?w=900", notes: "Style", noteChoices: [{ label: "Classic", extraPrice: 0 }, { label: "With marshmallows", extraPrice: 0.5 }, { label: "Spicy", extraPrice: 0 }] },
+  { id: "p7", categoryId: "pastries", name: "Butter Croissant", description: "Flaky, golden, perfectly buttery.", price: 3.5, image: "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=900", notes: "Filling", noteChoices: [{ label: "Plain", extraPrice: 0 }, { label: "Chocolate", extraPrice: 0.75 }, { label: "Almond", extraPrice: 1 }] },
+  { id: "p8", categoryId: "pastries", name: "Cinnamon Roll", description: "Warm, gooey, swirled with cinnamon glaze.", price: 4.0, image: "https://images.unsplash.com/photo-1509365465985-25d11c17e812?w=900", notes: "Glaze", noteChoices: [{ label: "Regular", extraPrice: 0 }, { label: "Extra glaze", extraPrice: 0.5 }, { label: "No glaze", extraPrice: 0 }] },
 ];
 
 export type BackgroundSlide = {
@@ -362,15 +362,38 @@ export function initShopSync() {
   try {
     const channel = new BroadcastChannel(SHOP_SYNC_CHANNEL);
     let catalogRefreshTimer: number | undefined;
+    let adminRefreshTimer: number | undefined;
+
+    const refreshCatalog = () => {
+      if (isApiMode) {
+        void import("@/lib/api/catalog-sync").then(({ pullCatalogFromServer }) => pullCatalogFromServer(true));
+      } else {
+        rehydrate();
+      }
+    };
+
     channel.onmessage = (event) => {
       if (event.data?.type === "new-order" || event.data?.type === "new-large-order") rehydrate();
+
       if (event.data?.type === "catalog-updated") {
-        window.clearTimeout(catalogRefreshTimer);
-        catalogRefreshTimer = window.setTimeout(() => {
-          void import("@/lib/api/hydrate").then(({ hydrateShopFromApi }) =>
-            hydrateShopFromApi({ broadcast: false }),
-          );
-        }, 800);
+        void import("@/lib/api/catalog-sync").then(({ isSameTabBroadcast }) => {
+          if (isSameTabBroadcast(event.data?.sourceTabId as string | undefined)) return;
+          window.clearTimeout(catalogRefreshTimer);
+          catalogRefreshTimer = window.setTimeout(refreshCatalog, 80);
+        });
+      }
+
+      if (event.data?.type === "admin-data-updated") {
+        window.clearTimeout(adminRefreshTimer);
+        adminRefreshTimer = window.setTimeout(() => {
+          if (isApiMode) {
+            void import("@/lib/api/hydrate").then(({ refreshAdminDataFromApi }) =>
+              refreshAdminDataFromApi({ broadcast: false }),
+            );
+          } else {
+            rehydrate();
+          }
+        }, 80);
       }
     };
   } catch {

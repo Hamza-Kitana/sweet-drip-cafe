@@ -13,7 +13,8 @@ namespace SweetDrip.Api.Controllers;
 public class OrdersController(
     SweetDripDbContext db,
     PricingService pricing,
-    StripePaymentService stripe) : ControllerBase
+    StripePaymentService stripe,
+    LiveRevisionService revisions) : ControllerBase
 {
     [HttpPost("checkout")]
     public async Task<ActionResult<CheckoutResponseDto>> Checkout([FromBody] CheckoutRequestDto body, CancellationToken ct)
@@ -59,6 +60,7 @@ public class OrdersController(
 
             order.StripePaymentIntentId = paymentIntentId;
             await db.SaveChangesAsync(ct);
+            revisions.BumpAdmin();
 
             return Ok(new CheckoutResponseDto(orderId, clientSecret, paymentIntentId, subtotal, body.Tip, tax, taxRate, total));
         }
@@ -87,12 +89,14 @@ public class OrdersController(
             order.PaymentFailureReason = null;
             order.StripePaymentIntentId = intent.Id;
             await db.SaveChangesAsync(ct);
+            revisions.BumpAdmin();
             return Ok(Map(order));
         }
 
         order.PaymentStatus = PaymentStatus.Failed;
         order.PaymentFailureReason = intent.LastPaymentError?.Message ?? "Payment was not completed";
         await db.SaveChangesAsync(ct);
+        revisions.BumpAdmin();
         return BadRequest(new { error = order.PaymentFailureReason, order = Map(order) });
     }
 
@@ -131,6 +135,7 @@ public class OrdersController(
             _ => order.Status,
         };
         await db.SaveChangesAsync(ct);
+        revisions.BumpAdmin();
         return Ok(Map(order));
     }
 
@@ -142,6 +147,7 @@ public class OrdersController(
         if (order == null) return NotFound();
         db.Orders.Remove(order);
         await db.SaveChangesAsync(ct);
+        revisions.BumpAdmin();
         return Ok();
     }
 

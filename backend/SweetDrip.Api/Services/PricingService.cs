@@ -24,7 +24,16 @@ public class PricingService(SweetDripDbContext db)
         {
             decimal unitPrice;
             if (products.TryGetValue(line.ProductId, out var product))
+            {
                 unitPrice = product.Price;
+                if (!string.IsNullOrWhiteSpace(line.NoteChoice))
+                {
+                    var match = NoteChoicesParser.Parse(product.NoteChoicesJson)
+                        .FirstOrDefault(c => string.Equals(c.Label, line.NoteChoice, StringComparison.OrdinalIgnoreCase));
+                    if (match != null)
+                        unitPrice += match.ExtraPrice;
+                }
+            }
             else if (offers.TryGetValue(line.ProductId, out var offer))
                 unitPrice = offer.Price;
             else if (line.ProductId.StartsWith("offer:", StringComparison.OrdinalIgnoreCase))

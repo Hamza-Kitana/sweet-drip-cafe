@@ -7,7 +7,7 @@ namespace SweetDrip.Api.Services;
 /// In-memory catalog cache — avoids hammering SQL when many visitors load the site at once.
 /// Invalidated whenever admin changes menu, hero, tax, or offers visibility.
 /// </summary>
-public class CatalogCacheService(IMemoryCache cache, CatalogMapper mapper)
+public class CatalogCacheService(IMemoryCache cache, CatalogMapper mapper, LiveRevisionService revisions)
 {
     private const string CacheKey = "catalog:snapshot:v1";
     private static readonly TimeSpan Ttl = TimeSpan.FromMinutes(3);
@@ -26,5 +26,9 @@ public class CatalogCacheService(IMemoryCache cache, CatalogMapper mapper)
         return catalog;
     }
 
-    public void Invalidate() => cache.Remove(CacheKey);
+    public void Invalidate()
+    {
+        cache.Remove(CacheKey);
+        revisions.BumpCatalog();
+    }
 }

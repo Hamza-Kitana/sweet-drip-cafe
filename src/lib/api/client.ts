@@ -36,9 +36,13 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
   let res: Response;
   try {
     res = await fetch(`${API_URL}${path}`, { ...init, headers });
-  } catch {
+  } catch (err) {
+    const isUpload = path.includes("/media");
+    const detail = err instanceof Error ? err.message : "";
     throw new ApiError(
-      "Could not reach the server (fetch failed). Check your connection, sign in to admin again, or use an image under 3 MB.",
+      isUpload
+        ? `Upload failed (network blocked). The server nginx limit is 1 MB — ask your host to add client_max_body_size 50m on api.sweetdrip.cafe, or use a smaller photo (under 700 KB).${detail ? ` (${detail})` : ""}`
+        : `Could not reach the server. Check your connection or sign in to admin again.${detail ? ` (${detail})` : ""}`,
       0,
     );
   }
@@ -62,7 +66,7 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
         : res.status === 401
           ? "Please sign in to admin again"
           : res.status === 413
-            ? "Image is too large — use a file under 3 MB"
+            ? "Image too large for server (nginx 1 MB limit). Use a smaller photo or fix nginx: client_max_body_size 50m on api.sweetdrip.cafe"
             : res.statusText || "Request failed";
     throw new ApiError(msg, res.status, data);
   }

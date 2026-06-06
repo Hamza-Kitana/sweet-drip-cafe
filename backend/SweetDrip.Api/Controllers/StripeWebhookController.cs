@@ -3,12 +3,17 @@ using Microsoft.EntityFrameworkCore;
 using Stripe;
 using SweetDrip.Api.Data;
 using SweetDrip.Api.Models;
+using SweetDrip.Api.Services;
 
 namespace SweetDrip.Api.Controllers;
 
 [ApiController]
 [Route("api/stripe")]
-public class StripeWebhookController(SweetDripDbContext db, IConfiguration config, ILogger<StripeWebhookController> logger) : ControllerBase
+public class StripeWebhookController(
+    SweetDripDbContext db,
+    LiveRevisionService revisions,
+    IConfiguration config,
+    ILogger<StripeWebhookController> logger) : ControllerBase
 {
     [HttpPost("webhook")]
     public async Task<IActionResult> Webhook(CancellationToken ct)
@@ -63,5 +68,6 @@ public class StripeWebhookController(SweetDripDbContext db, IConfiguration confi
 
         order.StripePaymentIntentId = intent.Id;
         await db.SaveChangesAsync(ct);
+        revisions.BumpAdmin();
     }
 }

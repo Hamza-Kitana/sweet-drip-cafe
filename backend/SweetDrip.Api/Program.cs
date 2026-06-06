@@ -48,6 +48,7 @@ builder.Services.Configure<GzipCompressionProviderOptions>(options =>
 
 builder.Services.AddResponseCaching();
 
+builder.Services.AddSingleton<LiveRevisionService>();
 builder.Services.AddScoped<PricingService>();
 builder.Services.AddScoped<CatalogMapper>();
 builder.Services.AddScoped<CatalogCacheService>();

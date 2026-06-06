@@ -212,6 +212,10 @@ public class AdminController(SweetDripDbContext db, CatalogCacheService catalogC
     [HttpPost("offers")]
     public async Task<ActionResult<OfferDto>> AddOffer([FromBody] OfferDto body, CancellationToken ct)
     {
+        if (!TryParseOptionalDate(body.StartAt, out var startAt, out var dateError)
+            || !TryParseOptionalDate(body.EndAt, out var endAt, out dateError))
+            return BadRequest(new { error = dateError });
+
         var id = string.IsNullOrWhiteSpace(body.Id) ? "o-" + Guid.NewGuid().ToString("N")[..8] : body.Id;
         var row = new Offer
         {
@@ -221,8 +225,8 @@ public class AdminController(SweetDripDbContext db, CatalogCacheService catalogC
             Price = body.Price,
             Image = body.Image,
             ProductIdsJson = JsonSerializer.Serialize(body.ProductIds ?? [], JsonOpts),
-            StartAt = string.IsNullOrEmpty(body.StartAt) ? null : DateTime.Parse(body.StartAt),
-            EndAt = string.IsNullOrEmpty(body.EndAt) ? null : DateTime.Parse(body.EndAt),
+            StartAt = startAt,
+            EndAt = endAt,
             Active = body.Active,
         };
         db.Offers.Add(row);
@@ -232,21 +236,26 @@ public class AdminController(SweetDripDbContext db, CatalogCacheService catalogC
     }
 
     [HttpPut("offers/{id}")]
-    public async Task<IActionResult> UpdateOffer(string id, [FromBody] OfferDto body, CancellationToken ct)
+    public async Task<ActionResult<OfferDto>> UpdateOffer(string id, [FromBody] OfferDto body, CancellationToken ct)
     {
         var row = await db.Offers.FindAsync([id], ct);
         if (row == null) return NotFound();
+
+        if (!TryParseOptionalDate(body.StartAt, out var startAt, out var dateError)
+            || !TryParseOptionalDate(body.EndAt, out var endAt, out dateError))
+            return BadRequest(new { error = dateError });
+
         row.Title = body.Title;
         row.Description = body.Description;
         row.Price = body.Price;
         row.Image = body.Image;
         row.ProductIdsJson = JsonSerializer.Serialize(body.ProductIds ?? [], JsonOpts);
-        row.StartAt = string.IsNullOrEmpty(body.StartAt) ? null : DateTime.Parse(body.StartAt);
-        row.EndAt = string.IsNullOrEmpty(body.EndAt) ? null : DateTime.Parse(body.EndAt);
+        row.StartAt = startAt;
+        row.EndAt = endAt;
         row.Active = body.Active;
         await db.SaveChangesAsync(ct);
         InvalidateCatalogCache();
-        return Ok();
+        return Ok(CatalogMapper.MapOffer(row));
     }
 
     [HttpDelete("offers/{id}")]
@@ -274,5 +283,22 @@ public class AdminController(SweetDripDbContext db, CatalogCacheService catalogC
         if (row == null || !decimal.TryParse(row.Value, NumberStyles.Number, CultureInfo.InvariantCulture, out var rate))
             return 10.25m;
         return Math.Clamp(Math.Round(rate, 2), 0, 100);
+    }
+
+    private static bool TryParseOptionalDate(string? value, out DateTime? parsed, out string error)
+    {
+        parsed = null;
+        error = "";
+        if (string.IsNullOrWhiteSpace(value)) return true;
+
+        if (DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var dt)
+            || DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out dt))
+        {
+            parsed = dt;
+            return true;
+        }
+
+        error = "Invalid start/end date — check the schedule fields.";
+        return false;
     }
 }

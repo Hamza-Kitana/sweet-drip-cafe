@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { isApiMode } from "@/lib/api/client";
+import { prepareImageForUpload } from "@/lib/compressImage";
 import { removeStoredMedia, uploadSiteImageFile } from "@/lib/api/media";
 
 const MAX_BYTES = 3 * 1024 * 1024;
@@ -49,14 +50,9 @@ export function ImageDropzone({
     if (!file) return;
     try {
       if (isApiMode) {
-        if (file.size > MAX_BYTES) {
-          throw new Error("Image must be under 3 MB");
-        }
-        if (!file.type.startsWith("image/")) {
-          throw new Error("Please choose an image file (JPG, PNG, WebP…)");
-        }
+        const prepared = await prepareImageForUpload(file);
         if (value) await removeStoredMedia(value);
-        const uploaded = await uploadSiteImageFile(file);
+        const uploaded = await uploadSiteImageFile(prepared);
         onChange(uploaded.url);
       } else {
         onChange(await readImageAsDataUrl(file));
@@ -158,13 +154,8 @@ export function ImageUploadButton({
     if (!file) return;
     try {
       if (isApiMode) {
-        if (file.size > MAX_BYTES) {
-          throw new Error("Image must be under 3 MB");
-        }
-        if (!file.type.startsWith("image/")) {
-          throw new Error("Please choose an image file (JPG, PNG, WebP…)");
-        }
-        const uploaded = await uploadSiteImageFile(file);
+        const prepared = await prepareImageForUpload(file);
+        const uploaded = await uploadSiteImageFile(prepared);
         onUpload(uploaded.url);
       } else {
         onUpload(await readImageAsDataUrl(file));

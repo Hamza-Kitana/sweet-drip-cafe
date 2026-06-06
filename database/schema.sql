@@ -25,7 +25,7 @@ CREATE TABLE Products (
     Price           DECIMAL(10,2) NOT NULL,
     Image           NVARCHAR(MAX) NOT NULL,
     Notes           NVARCHAR(MAX) NOT NULL DEFAULT '',
-    NoteChoicesJson NVARCHAR(MAX) NOT NULL DEFAULT '[]'
+    NoteChoicesJson NVARCHAR(MAX) NOT NULL DEFAULT '[]' -- [{ "label": "Large", "extraPrice": 1.5 }]
 );
 
 CREATE TABLE Offers (

@@ -4,7 +4,8 @@ using System.Globalization;
 using System.Text.Json.Serialization;
 
 public record CategoryDto(string? Id, string Name, string Image, bool Visible);
-public record ProductDto(string? Id, string CategoryId, string Name, string Description, decimal Price, string Image, string Notes, string[]? NoteChoices);
+public record ProductNoteChoiceDto(string Label, decimal ExtraPrice);
+public record ProductDto(string? Id, string CategoryId, string Name, string Description, decimal Price, string Image, string Notes, ProductNoteChoiceDto[]? NoteChoices);
 public record OfferDto(string? Id, string Title, string Description, decimal Price, string Image, string[]? ProductIds, string? StartAt, string? EndAt, bool Active);
 public record BackgroundSlideDto(string Image, string Caption);
 public record HeroDto(string Tagline, string Image, string[] FloatingImages, string AboutImage, BackgroundSlideDto[] BackgroundSlides, string HeroBadge, string HeroTitleBefore, string HeroTitleAccent, string HeroTitleAfter);

@@ -1,8 +1,30 @@
 import type { Category, HeroSettings, Offer, Order, Product } from "@/lib/store";
+import { normalizeOfferSchedule } from "@/lib/admin-dates";
 import { normalizeTaxRate, useAdmin, useShop } from "@/lib/store";
 import * as api from "./backend";
 import { isApiMode } from "./client";
+import {
+  publishCatalogMutation,
+  registerCategory,
+  registerOffer,
+  registerProduct,
+  removeCategoryLocal,
+  removeOfferLocal,
+  removeProductLocal,
+  updateCategoryLocal,
+  updateOfferLocal,
+  updateProductLocal,
+} from "./catalog-sync";
 import { hydrateShopFromApi, refreshAdminDataFromApi } from "./hydrate";
+import { notifyLocalAdminDataChanged, notifyLocalCatalogChanged } from "./live-sync";
+
+function afterLocalCatalogChange() {
+  notifyLocalCatalogChanged();
+}
+
+function afterLocalAdminChange() {
+  notifyLocalAdminDataChanged();
+}
 
 export async function loadAdminProfileFromApi() {
   if (!isApiMode) return;
@@ -30,125 +52,226 @@ export async function saveTaxRateToApi(taxRatePercent: number) {
   const rate = normalizeTaxRate(taxRatePercent);
   useShop.getState().setTaxRatePercent(rate);
   if (!isApiMode) {
+    afterLocalCatalogChange();
     return rate;
   }
   const result = await api.saveTaxRate(rate);
   useShop.getState().setTaxRatePercent(result.taxRatePercent);
+  await publishCatalogMutation();
   return result.taxRatePercent;
 }
 
 export async function saveOffersVisibleToApi(visible: boolean) {
   if (!isApiMode) {
     useShop.getState().setOffersSectionVisible(visible);
+    afterLocalCatalogChange();
     return;
   }
-  await api.saveOffersVisible(visible);
   useShop.getState().setOffersSectionVisible(visible);
+  await api.saveOffersVisible(visible);
+  await publishCatalogMutation();
 }
 
 export async function saveHeroToApi(hero: HeroSettings) {
   useShop.getState().setHero(hero);
   if (!isApiMode) {
+    afterLocalCatalogChange();
     return;
   }
   await api.saveHero(hero);
-  await hydrateShopFromApi({ force: true });
+  await publishCatalogMutation();
 }
 
 export async function patchCategory(id: string, data: Partial<Category>) {
   if (!isApiMode) {
     useShop.getState().updateCategory(id, data);
+    afterLocalCatalogChange();
     return;
   }
   const category = useShop.getState().categories.find((c) => c.id === id);
-  if (!category) return;
-  await api.updateCategory({ ...category, ...data });
-  await hydrateShopFromApi({ force: true });
+  if (!category) throw new Error("Section not found — refresh and try again.");
+  const next = { ...category, ...data };
+  updateCategoryLocal(next);
+  try {
+    await api.updateCategory(next);
+    await publishCatalogMutation();
+  } catch (error) {
+    updateCategoryLocal(category);
+    throw error;
+  }
 }
 
 export async function saveCategory(editing: Category | null, data: Omit<Category, "id">) {
   if (!isApiMode) {
     if (editing) useShop.getState().updateCategory(editing.id, data);
     else useShop.getState().addCategory(data);
+    afterLocalCatalogChange();
     return;
   }
+
   if (editing) {
-    await api.updateCategory({ ...editing, ...data });
-  } else {
-    await api.createCategory(data);
+    const next = { ...editing, ...data };
+    updateCategoryLocal(next);
+    try {
+      await api.updateCategory(next);
+      await publishCatalogMutation();
+    } catch (error) {
+      updateCategoryLocal(editing);
+      throw error;
+    }
+    return;
   }
-  await hydrateShopFromApi({ force: true });
+
+  const created = await api.createCategory(data);
+  registerCategory(created);
+  await publishCatalogMutation();
 }
 
 export async function removeCategory(id: string) {
   if (!isApiMode) {
     useShop.getState().deleteCategory(id);
+    afterLocalCatalogChange();
     return;
   }
-  await api.deleteCategoryApi(id);
-  await hydrateShopFromApi({ force: true });
+
+  const prevCategories = useShop.getState().categories;
+  const prevProducts = useShop.getState().products;
+  removeCategoryLocal(id);
+  try {
+    await api.deleteCategoryApi(id);
+    await publishCatalogMutation();
+  } catch (error) {
+    useShop.setState({ categories: prevCategories, products: prevProducts });
+    throw error;
+  }
 }
 
 export async function saveProduct(editing: Product | null, data: Omit<Product, "id">) {
   if (!isApiMode) {
     if (editing) useShop.getState().updateProduct(editing.id, data);
     else useShop.getState().addProduct(data);
+    afterLocalCatalogChange();
     return;
   }
+
   if (editing) {
-    await api.updateProduct({ ...editing, ...data });
-  } else {
-    await api.createProduct(data);
+    const next = { ...editing, ...data };
+    updateProductLocal(next);
+    try {
+      await api.updateProduct(next);
+      await publishCatalogMutation();
+    } catch (error) {
+      updateProductLocal(editing);
+      throw error;
+    }
+    return;
   }
-  await hydrateShopFromApi({ force: true });
+
+  const created = await api.createProduct(data);
+  registerProduct(created);
+  await publishCatalogMutation();
 }
 
 export async function removeProduct(id: string) {
   if (!isApiMode) {
     useShop.getState().deleteProduct(id);
+    afterLocalCatalogChange();
     return;
   }
-  await api.deleteProductApi(id);
-  await hydrateShopFromApi({ force: true });
+
+  const prevProducts = useShop.getState().products;
+  removeProductLocal(id);
+  try {
+    await api.deleteProductApi(id);
+    await publishCatalogMutation();
+  } catch (error) {
+    useShop.setState({ products: prevProducts });
+    throw error;
+  }
 }
 
 export async function saveOffer(editing: Offer | null, data: Omit<Offer, "id">) {
+  const payload = {
+    ...data,
+    startAt: normalizeOfferSchedule(data.startAt),
+    endAt: normalizeOfferSchedule(data.endAt),
+  };
+
   if (!isApiMode) {
-    if (editing) useShop.getState().updateOffer(editing.id, data);
-    else useShop.getState().addOffer(data);
+    if (editing) useShop.getState().updateOffer(editing.id, payload);
+    else useShop.getState().addOffer(payload);
+    afterLocalCatalogChange();
     return;
   }
+
   if (editing) {
-    await api.updateOffer({ ...editing, ...data });
-  } else {
-    await api.createOffer(data);
+    const optimistic = { ...editing, ...payload };
+    updateOfferLocal(optimistic);
+    try {
+      const saved = await api.updateOffer(optimistic);
+      updateOfferLocal(saved);
+      await publishCatalogMutation();
+    } catch (error) {
+      updateOfferLocal(editing);
+      throw error;
+    }
+    return;
   }
-  await hydrateShopFromApi({ force: true });
+
+  const created = await api.createOffer(payload);
+  registerOffer(created);
+  await publishCatalogMutation();
 }
 
 export async function patchOffer(id: string, data: Partial<Offer>) {
   if (!isApiMode) {
     useShop.getState().updateOffer(id, data);
+    afterLocalCatalogChange();
     return;
   }
+
   const offer = useShop.getState().offers.find((o) => o.id === id);
-  if (!offer) return;
-  await api.updateOffer({ ...offer, ...data });
-  await hydrateShopFromApi({ force: true });
+  if (!offer) throw new Error("Offer not found — refresh the page and try again.");
+
+  const optimistic = {
+    ...offer,
+    ...data,
+    startAt: normalizeOfferSchedule(data.startAt ?? offer.startAt),
+    endAt: normalizeOfferSchedule(data.endAt ?? offer.endAt),
+  };
+  updateOfferLocal(optimistic);
+  try {
+    const saved = await api.updateOffer(optimistic);
+    updateOfferLocal(saved);
+    await publishCatalogMutation();
+  } catch (error) {
+    updateOfferLocal(offer);
+    throw error;
+  }
 }
 
 export async function removeOffer(id: string) {
   if (!isApiMode) {
     useShop.getState().deleteOffer(id);
+    afterLocalCatalogChange();
     return;
   }
-  await api.deleteOfferApi(id);
-  await hydrateShopFromApi({ force: true });
+
+  const prevOffers = useShop.getState().offers;
+  removeOfferLocal(id);
+  try {
+    await api.deleteOfferApi(id);
+    await publishCatalogMutation();
+  } catch (error) {
+    useShop.setState({ offers: prevOffers });
+    throw error;
+  }
 }
 
 export async function patchOrderStatus(orderId: string, status: Order["status"]) {
   if (!isApiMode) {
     useShop.getState().updateOrderStatus(orderId, status);
+    afterLocalAdminChange();
     return;
   }
   await api.updateOrderStatusApi(orderId, status);
@@ -158,6 +281,7 @@ export async function patchOrderStatus(orderId: string, status: Order["status"])
 export async function patchCateringStatus(id: string, status: "new" | "contacted" | "done") {
   if (!isApiMode) {
     useShop.getState().updateLargeOrderStatus(id, status);
+    afterLocalAdminChange();
     return;
   }
   await api.updateCateringStatusApi(id, status);
@@ -167,6 +291,7 @@ export async function patchCateringStatus(id: string, status: "new" | "contacted
 export async function removeOrder(id: string) {
   if (!isApiMode) {
     useShop.getState().deleteOrder(id);
+    afterLocalAdminChange();
     return;
   }
   await api.deleteOrderApi(id);
@@ -176,8 +301,11 @@ export async function removeOrder(id: string) {
 export async function removeCatering(id: string) {
   if (!isApiMode) {
     useShop.getState().deleteLargeOrder(id);
+    afterLocalAdminChange();
     return;
   }
   await api.deleteCateringApi(id);
   await refreshAdminDataFromApi();
 }
+
+export { hydrateShopFromApi };
